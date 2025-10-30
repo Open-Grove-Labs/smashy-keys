@@ -145,17 +145,16 @@ function App() {
         className={`squirrel squirrel-right ${rightShiftPressed ? 'squirrel-peek' : ''}`}
       />
 
-      <div className="display-container">
-        {displayChar && (
+      {displayChar ? (
+        <div className="display-container">
           <div 
             className="display-char"
             style={{ '--char-color': /^[a-zA-Z0-9]$/.test(displayChar) ? getCharColor(displayChar) : '#ffffff' } as React.CSSProperties}
           >
             {displayChar}
           </div>
-        )}
-      </div>
-      {!displayChar && (
+        </div>
+      ) : (
         <div className="instructions">
           <h1>Press any key!</h1>
           <p>Letters, numbers, or arrow keys</p>
