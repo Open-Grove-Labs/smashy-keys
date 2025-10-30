@@ -4,6 +4,7 @@ import './App.css'
 function App() {
   const [displayChar, setDisplayChar] = useState('')
   const [backgroundColor, setBackgroundColor] = useState('#ff6b6b')
+  const [isCapsLock, setIsCapsLock] = useState(false)
 
   // Predefined bright colors for letters and numbers
   const getCharColor = (char: string): string => {
@@ -22,6 +23,7 @@ function App() {
       return colors[char.charCodeAt(0) - '0'.charCodeAt(0)]
     }
     
+    // Handle both lowercase and uppercase letters using the same color mapping
     if (char >= 'a' && char <= 'z') {
       return colors[10 + (char.charCodeAt(0) - 'a'.charCodeAt(0))]
     }
@@ -49,12 +51,28 @@ function App() {
     const handleKeyPress = (event: KeyboardEvent) => {
       const key = event.key
       
+      // Update Caps Lock state
+      setIsCapsLock(event.getModifierState('CapsLock'))
+      
       // Change background color for every keypress
       setBackgroundColor(getRandomBackgroundColor())
       
       // Handle letters and numbers
       if (/^[a-zA-Z0-9]$/.test(key)) {
-        setDisplayChar(key.toUpperCase())
+        // For letters, use the actual case based on Caps Lock and Shift
+        if (/^[a-zA-Z]$/.test(key)) {
+          // Check if Caps Lock is on
+          const capsLockOn = event.getModifierState('CapsLock')
+          const shiftPressed = event.shiftKey
+          
+          // Determine if letter should be uppercase
+          const shouldBeUppercase = capsLockOn !== shiftPressed // XOR logic
+          
+          setDisplayChar(shouldBeUppercase ? key.toUpperCase() : key.toLowerCase())
+        } else {
+          // For numbers, always show as-is
+          setDisplayChar(key)
+        }
       }
       // Handle arrow keys
       else if (key === 'ArrowUp') {
@@ -103,6 +121,9 @@ function App() {
         <div className="instructions">
           <h1>Press any key!</h1>
           <p>Letters, numbers, or arrow keys</p>
+          <p className="caps-lock-hint">
+            Use Caps Lock for UPPERCASE letters!
+          </p>
         </div>
       )}
     </div>
