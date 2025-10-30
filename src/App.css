@@ -92,3 +92,32 @@ html, body {
   margin: 0;
   padding: 0;
 }
+
+/* Squirrel styles */
+.squirrel {
+  position: fixed;
+  width: 120px;
+  height: auto;
+  z-index: 1000;
+  top: 50%;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.squirrel-left {
+  left: 0;
+  transform: translateY(-50%) translateX(-100%);
+}
+
+.squirrel-right {
+  right: 0;
+  transform: translateY(-50%) translateX(100%) scaleX(-1);
+}
+
+.squirrel-left.squirrel-peek {
+  transform: translateY(-50%) translateX(-20%) rotate(15deg);
+}
+
+.squirrel-right.squirrel-peek {
+  transform: translateY(-50%) translateX(20%) scaleX(-1) rotate(15deg);
+}

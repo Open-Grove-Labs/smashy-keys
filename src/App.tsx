@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import squirrelImg from './assets/squirrel.png'
 
 function App() {
   const [displayChar, setDisplayChar] = useState('')
   const [backgroundColor, setBackgroundColor] = useState('#ff6b6b')
   const [isCapsLock, setIsCapsLock] = useState(false)
+  const [leftShiftPressed, setLeftShiftPressed] = useState(false)
+  const [rightShiftPressed, setRightShiftPressed] = useState(false)
 
   // Predefined bright colors for letters and numbers
   const getCharColor = (char: string): string => {
@@ -48,8 +51,16 @@ function App() {
   }
 
   useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key
+      const code = event.code
+      
+      // Handle shift keys for squirrel using event.code for better detection
+      if (code === 'ShiftLeft') {
+        setLeftShiftPressed(true)
+      } else if (code === 'ShiftRight') {
+        setRightShiftPressed(true)
+      }
       
       // Update Caps Lock state
       setIsCapsLock(event.getModifierState('CapsLock'))
@@ -87,18 +98,31 @@ function App() {
       else if (key === 'ArrowRight') {
         setDisplayChar('RIGHT')
       }
-      // Clear display for other keys
-      else {
+      // Clear display for other keys (but not shift keys)
+      else if (key !== 'Shift') {
         setDisplayChar('')
       }
     }
 
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const code = event.code
+      
+      // Handle shift key releases using event.code
+      if (code === 'ShiftLeft') {
+        setLeftShiftPressed(false)
+      } else if (code === 'ShiftRight') {
+        setRightShiftPressed(false)
+      }
+    }
+
     // Add event listeners
-    window.addEventListener('keydown', handleKeyPress)
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
     
     // Cleanup
     return () => {
-      window.removeEventListener('keydown', handleKeyPress)
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
     }
   }, [])
 
@@ -107,6 +131,20 @@ function App() {
       className="toddler-app"
       style={{ '--bg-color': backgroundColor } as React.CSSProperties}
     >
+      {/* Left squirrel */}
+      <img 
+        src={squirrelImg} 
+        alt="Squirrel" 
+        className={`squirrel squirrel-left ${leftShiftPressed ? 'squirrel-peek' : ''}`}
+      />
+      
+      {/* Right squirrel */}
+      <img 
+        src={squirrelImg} 
+        alt="Squirrel" 
+        className={`squirrel squirrel-right ${rightShiftPressed ? 'squirrel-peek' : ''}`}
+      />
+
       <div className="display-container">
         {displayChar && (
           <div 
