@@ -32,9 +32,55 @@ function App() {
     dir: "ltr" | "rtl";
   }[]>([]);
   const fishIdRef = useRef(0);
+  // Shared dynamic stylesheet and rule trackers (avoid per-element <style> blocks)
+  const dynamicStyleElRef = useRef<HTMLStyleElement | null>(null);
+  const dynamicSheetRef = useRef<CSSStyleSheet | null>(null);
+  const fishRuleRefs = useRef<Record<number, string>>({});
+  const charRuleRefs = useRef<Record<string, string>>({});
+  const [displayCharClass, setDisplayCharClass] = useState<string>("");
+
+  const ensureDynamicSheet = useCallback(() => {
+    if (dynamicSheetRef.current) return;
+    if (typeof document === "undefined") return;
+    const id = "dynamic-styles";
+    let el = document.getElementById(id) as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement("style");
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    dynamicStyleElRef.current = el;
+    dynamicSheetRef.current = el.sheet as CSSStyleSheet;
+  }, []);
+
+  // Helper to spawn a fish with randomized vertical position and duration
+  const spawnFish = useCallback((dir: "ltr" | "rtl") => {
+    const id = ++fishIdRef.current;
+    const y = Math.floor(Math.random() * (80 - 20 + 1)) + 20; // 20..80
+    const top = `${y}%`;
+    const minDur = 2.0;
+    const maxDur = 4.5;
+    const duration = Number((Math.random() * (maxDur - minDur) + minDur).toFixed(2));
+    setFishList((prev) => [...prev, { id, top, duration, dir }]);
+    // create a per-fish CSS rule in the shared dynamic stylesheet
+    try {
+      ensureDynamicSheet();
+      const className = `fish-id-${id}`;
+      const rule = `.${"fish"}.${className} { top: ${top}; animation-duration: ${duration}s; }`;
+      const sheet = dynamicSheetRef.current;
+      if (sheet) {
+        sheet.insertRule(rule, sheet.cssRules.length);
+        fishRuleRefs.current[id] = rule;
+      }
+    } catch (e) {
+      void e;
+    }
+  }, [ensureDynamicSheet]);
+
+  
 
   // Predefined bright colors for letters and numbers
-  const getCharColor = (char: string): string => {
+  const getCharColor = useCallback((char: string): string => {
     const colors = [
       "#ff6b6b",
       "#4ecdc4",
@@ -88,7 +134,7 @@ function App() {
     }
 
     return "#ffffff";
-  };
+  }, []);
 
   // Generate random bright background colors
   const getRandomBackgroundColor = (): string => {
@@ -163,6 +209,34 @@ function App() {
     }
   }, []);
 
+  // Create or reuse a CSS class for the given character color to avoid inline styles
+  const ensureCharClass = useCallback(
+    (char: string) => {
+      if (!/^[a-zA-Z0-9]$/.test(char)) {
+        setDisplayCharClass("");
+        return;
+      }
+      const safe = char.replace(/[^a-zA-Z0-9]/g, (c) => `_${c.charCodeAt(0)}`);
+      const className = `char-${safe}`;
+      if (!charRuleRefs.current[className]) {
+        try {
+          ensureDynamicSheet();
+          const color = getCharColor(char);
+          const rule = `.${className} { --char-color: ${color}; }`;
+          const sheet = dynamicSheetRef.current;
+          if (sheet) {
+            sheet.insertRule(rule, sheet.cssRules.length);
+            charRuleRefs.current[className] = rule;
+          }
+        } catch (e) {
+          void e;
+        }
+      }
+      setDisplayCharClass(className);
+    },
+    [getCharColor, ensureDynamicSheet]
+  );
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
@@ -181,30 +255,15 @@ function App() {
       }
       // Enter -> spawn a fish swimming left->right (each press spawns one)
       if (code === "Enter") {
-        // prevent default so Enter doesn't submit forms / trigger other behaviours
         event.preventDefault();
-        const id = ++fishIdRef.current;
-        // Random vertical start between 20% and 80%
-        const y = Math.floor(Math.random() * (80 - 20 + 1)) + 20;
-        const top = `${y}%`;
-        // Random duration between 2.0s and 4.5s (slightly variable speeds)
-        const minDur = 2.0;
-        const maxDur = 4.5;
-        const duration = Number((Math.random() * (maxDur - minDur) + minDur).toFixed(2));
-        setFishList((prev) => [...prev, { id, top, duration, dir: "ltr" }]);
+        spawnFish("ltr");
       }
 
       // Tab -> spawn a flipped fish swimming right->left
       if (code === "Tab") {
         // prevent default so Tab doesn't move focus
         event.preventDefault();
-        const id = ++fishIdRef.current;
-        const y = Math.floor(Math.random() * (80 - 20 + 1)) + 20;
-        const top = `${y}%`;
-        const minDur = 2.0;
-        const maxDur = 4.5;
-        const duration = Number((Math.random() * (maxDur - minDur) + minDur).toFixed(2));
-        setFishList((prev) => [...prev, { id, top, duration, dir: "rtl" }]);
+        spawnFish("rtl");
       }
 
       // Update Caps Lock state
@@ -253,6 +312,7 @@ function App() {
       // Update character and typed sequence
       if (newChar) {
         setDisplayChar(newChar);
+        ensureCharClass(newChar);
 
         // Update typed sequence for word detection (only for letters)
         if (/^[a-zA-Z]$/.test(newChar)) {
@@ -264,6 +324,7 @@ function App() {
         }
       } else if (key !== "Shift") {
         setDisplayChar("");
+        ensureCharClass("");
         // Reset typed sequence when non-letter key is pressed
         typedSequenceRef.current = "";
       }
@@ -295,7 +356,12 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [checkForWords]);
+  }, [checkForWords, ensureCharClass, spawnFish]);
+
+  // Keep the CSS variable for background in sync (avoid inline root styles)
+  useEffect(() => {
+    document.documentElement.style.setProperty("--bg-color", backgroundColor);
+  }, [backgroundColor]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -306,16 +372,42 @@ function App() {
     };
   }, []);
 
+  // Cleanup dynamic stylesheet on unmount
+  useEffect(() => {
+    return () => {
+      if (dynamicStyleElRef.current && dynamicStyleElRef.current.parentNode) {
+        dynamicStyleElRef.current.parentNode.removeChild(dynamicStyleElRef.current);
+      }
+      dynamicStyleElRef.current = null;
+      dynamicSheetRef.current = null;
+      fishRuleRefs.current = {};
+      charRuleRefs.current = {};
+    };
+  }, []);
+
   // Remove a fish when its animation ends
   const removeFish = (id: number) => {
     setFishList((prev) => prev.filter((x) => x.id !== id));
+    const sheet = dynamicSheetRef.current;
+    const ruleText = fishRuleRefs.current[id];
+    if (sheet && ruleText) {
+      for (let i = 0; i < sheet.cssRules.length; i++) {
+        try {
+          const r = sheet.cssRules[i] as CSSStyleRule;
+          if (r.cssText === ruleText || r.cssText.indexOf(`fish-id-${id}`) !== -1) {
+            sheet.deleteRule(i);
+            break;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      delete fishRuleRefs.current[id];
+    }
   };
 
   return (
-    <div
-      className="toddler-app"
-      style={{ "--bg-color": backgroundColor } as React.CSSProperties}
-    >
+    <div className="toddler-app">
       {/* Left squirrel */}
       <img
         src={squirrelImg}
@@ -347,25 +439,14 @@ function App() {
           key={f.id}
           src={fishImg}
           alt="Fish"
-          className={`fish ${f.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"}`}
-          style={{ top: f.top, animationDuration: `${f.duration}s` } as React.CSSProperties}
+          className={`fish fish-id-${f.id} ${f.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"}`}
           onAnimationEnd={() => removeFish(f.id)}
         />
       ))}
 
       {displayChar ? (
         <div className="display-container">
-          <div
-            key={animationKey}
-            className="display-char"
-            style={
-              {
-                "--char-color": /^[a-zA-Z0-9]$/.test(displayChar)
-                  ? getCharColor(displayChar)
-                  : "#ffffff",
-              } as React.CSSProperties
-            }
-          >
+          <div key={animationKey} className={`display-char ${displayCharClass}`}>
             {displayChar}
           </div>
           {foundWord && (
