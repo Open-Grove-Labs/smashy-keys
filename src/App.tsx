@@ -4,7 +4,7 @@ import squirrelImg from "./assets/animals/squirrel.webp";
 import bearImg from "./assets/animals/bear.webp";
 import fishImg from "./assets/animals/fish.webp";
 // import horseImg from "./assets/animals/horse.webp";
-// import duckImg from "./assets/animals/duck.webp";
+import duckImg from "./assets/animals/duck.webp";
 
 import smashyKeys from "./assets/smashy-keys.webp";
 
@@ -23,11 +23,13 @@ function App() {
   const [foundWord, setFoundWord] = useState("");
   const [wordFadingOut, setWordFadingOut] = useState(false);
   const [bearVisible, setBearVisible] = useState(false);
+  const [duckVisible, setDuckVisible] = useState(false);
 
   // Use refs for values that don't need to trigger re-renders
   const wordTimeoutRef = useRef<number | null>(null);
   const previousCharRef = useRef<string>("");
   const typedSequenceRef = useRef<string>("");
+  const bearTimeoutRef = useRef<number | null>(null);
 
   const { fishList, spawnFish, removeFish } = useFishSpawner();
   const { className: displayCharClass, ensureCharClass } = useCharClass();
@@ -65,6 +67,33 @@ function App() {
       setFoundWord(longestMatch.toLowerCase());
       setWordFadingOut(false);
 
+      // If the word 'fish' was typed, spawn a bunch of fishes
+      if (longestMatch.toLowerCase() === "fish") {
+        // spawn 6-10 fish with slight stagger
+        const count = 6 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < count; i++) {
+          const delay = Math.floor(Math.random() * 600); // up to 600ms stagger
+          setTimeout(() => {
+            // randomize direction sometimes
+            const dir = Math.random() < 0.85 ? "ltr" : "rtl";
+            spawnFish(dir);
+          }, delay);
+        }
+      }
+
+      // If the word 'bear' was typed, show the bear briefly
+      if (longestMatch.toLowerCase() === "bear") {
+        if (bearTimeoutRef.current) {
+          clearTimeout(bearTimeoutRef.current);
+          bearTimeoutRef.current = null;
+        }
+        setBearVisible(true);
+        bearTimeoutRef.current = window.setTimeout(() => {
+          setBearVisible(false);
+          bearTimeoutRef.current = null;
+        }, 2000);
+      }
+
       // Start fade out after 1.5 seconds, then hide completely after fade animation
       wordTimeoutRef.current = setTimeout(() => {
         setWordFadingOut(true);
@@ -76,7 +105,7 @@ function App() {
         }, 500);
       }, 6000);
     }
-  }, []);
+  }, [spawnFish]);
 
   // Create or reuse a CSS class for the given character color to avoid inline styles
   // character classes are handled by `useCharClass` hook
@@ -96,6 +125,11 @@ function App() {
       if ((code === 'Space' || key === ' ') && !event.repeat) {
         event.preventDefault();
         setBearVisible(true);
+      }
+      // Delete/Backspace -> duck popup (hold to show; release hides)
+      if ((code === "Delete" || code === "Backspace" || key === "Delete" || key === "Backspace") && !event.repeat) {
+        event.preventDefault();
+        setDuckVisible(true);
       }
       // Enter -> spawn a fish swimming left->right (each press spawns one)
       if (code === "Enter") {
@@ -188,6 +222,11 @@ function App() {
         event.preventDefault();
         setBearVisible(false);
       }
+      // Hide duck on Delete/Backspace release
+      if (code === "Delete" || code === "Backspace" || event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        setDuckVisible(false);
+      }
       // nothing special on Enter keyup — fish hides automatically after animation
     };
 
@@ -212,6 +251,9 @@ function App() {
     return () => {
       if (wordTimeoutRef.current) {
         clearTimeout(wordTimeoutRef.current);
+      }
+      if (bearTimeoutRef.current) {
+        clearTimeout(bearTimeoutRef.current);
       }
     };
   }, []);
@@ -244,6 +286,13 @@ function App() {
         src={bearImg}
         alt="Bear"
         className={`bear ${bearVisible ? "bear-pop" : ""}`}
+      />
+
+      {/* Duck (pops from bottom center when Delete is held) */}
+      <img
+        src={duckImg}
+        alt="Duck"
+        className={`duck ${duckVisible ? "duck-pop" : ""}`}
       />
 
       {/* Fish (swim left -> right on Enter) - multiple instances */}

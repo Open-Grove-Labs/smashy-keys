@@ -191,6 +191,24 @@ h1 {
   transform: translate(-50%, 0%);
 }
 
+/* Duck popup (bottom center) - appears when Delete is held */
+.duck {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 120%);
+  width: 260px;
+  height: auto;
+  z-index: 1190;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.duck.duck-pop {
+  transform: translate(-50%, 0%);
+}
+
 /* Fish swim across */
 .fish {
   position: fixed;
