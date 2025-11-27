@@ -142,10 +142,10 @@ html, body {
 /* Squirrel styles */
 .squirrel {
   position: fixed;
-  width: 120px;
+  width: 240px;
   height: auto;
   z-index: 1000;
-  top: 50%;
+  top: 90%;
   transition: transform 0.3s ease;
   pointer-events: none;
 }
@@ -166,4 +166,74 @@ html, body {
 
 .squirrel-right.squirrel-peek {
   transform: translateY(-50%) translateX(20%) scaleX(-1) rotate(15deg);
+}
+
+h1 {
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* Bear popup (bottom center) */
+.bear {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 120%);
+  width: 320px;
+  height: auto;
+  z-index: 1200;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.bear.bear-pop {
+  transform: translate(-50%, 0%);
+}
+
+/* Fish swim across */
+.fish {
+  position: fixed;
+  left: -220px;
+  /* top now supplied per-fish via inline style */
+  width: 220px;
+  height: auto;
+  z-index: 1100;
+  pointer-events: none;
+}
+
+.fish.fish-swim {
+  /* duration controlled via inline style (animation-duration) per fish */
+  animation-name: fishSwim;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes fishSwim {
+  0% {
+    left: -260px;
+    transform: translateY(-50%) rotate(0deg);
+  }
+  100% {
+    left: calc(100vw + 260px);
+    transform: translateY(-50%) rotate(0deg);
+  }
+}
+
+@keyframes fishSwimReverse {
+  0% {
+    left: calc(100vw + 260px);
+    transform: translateY(-50%) rotate(0deg) scaleX(-1);
+  }
+  100% {
+    left: -260px;
+    transform: translateY(-50%) rotate(0deg) scaleX(-1);
+  }
+}
+
+.fish.fish-swim-rtl {
+  /* use reverse swim animation; duration supplied inline per fish */
+  animation-name: fishSwimReverse;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }

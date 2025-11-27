@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
-import squirrelImg from "./assets/squirrel.png";
+import squirrelImg from "./assets/animals/squirrel.webp";
+import bearImg from "./assets/animals/bear.webp";
+import fishImg from "./assets/animals/fish.webp";
+// import horseImg from "./assets/animals/horse.webp";
+// import duckImg from "./assets/animals/duck.webp";
+
+import smashyKeys from "./assets/smashy-keys.webp";
+
 import { words } from "./words";
+import { names } from "./names";
 
 function App() {
   const [displayChar, setDisplayChar] = useState("");
@@ -11,11 +19,19 @@ function App() {
   const [animationKey, setAnimationKey] = useState(0);
   const [foundWord, setFoundWord] = useState("");
   const [wordFadingOut, setWordFadingOut] = useState(false);
+  const [bearVisible, setBearVisible] = useState(false);
 
   // Use refs for values that don't need to trigger re-renders
   const wordTimeoutRef = useRef<number | null>(null);
   const previousCharRef = useRef<string>("");
   const typedSequenceRef = useRef<string>("");
+  const [fishList, setFishList] = useState<{
+    id: number;
+    top: string;
+    duration: number;
+    dir: "ltr" | "rtl";
+  }[]>([]);
+  const fishIdRef = useRef(0);
 
   // Predefined bright colors for letters and numbers
   const getCharColor = (char: string): string => {
@@ -114,7 +130,7 @@ function App() {
 
     // Find the longest word that matches at the end of the sequence
     let longestMatch = "";
-    for (const word of words) {
+    for (const word of [...words, ...names]) {
       if (
         lowerSequence.endsWith(word.toLowerCase()) &&
         word.length > longestMatch.length
@@ -143,7 +159,7 @@ function App() {
           setWordFadingOut(false);
           wordTimeoutRef.current = null;
         }, 500);
-      }, 1500);
+      }, 6000);
     }
   }, []);
 
@@ -157,6 +173,38 @@ function App() {
         setLeftShiftPressed(true);
       } else if (code === "ShiftRight") {
         setRightShiftPressed(true);
+      }
+      // Space bar -> bear popup (only on initial keydown, prevent page scroll)
+      if ((code === 'Space' || key === ' ') && !event.repeat) {
+        event.preventDefault();
+        setBearVisible(true);
+      }
+      // Enter -> spawn a fish swimming left->right (each press spawns one)
+      if (code === "Enter") {
+        // prevent default so Enter doesn't submit forms / trigger other behaviours
+        event.preventDefault();
+        const id = ++fishIdRef.current;
+        // Random vertical start between 20% and 80%
+        const y = Math.floor(Math.random() * (80 - 20 + 1)) + 20;
+        const top = `${y}%`;
+        // Random duration between 2.0s and 4.5s (slightly variable speeds)
+        const minDur = 2.0;
+        const maxDur = 4.5;
+        const duration = Number((Math.random() * (maxDur - minDur) + minDur).toFixed(2));
+        setFishList((prev) => [...prev, { id, top, duration, dir: "ltr" }]);
+      }
+
+      // Tab -> spawn a flipped fish swimming right->left
+      if (code === "Tab") {
+        // prevent default so Tab doesn't move focus
+        event.preventDefault();
+        const id = ++fishIdRef.current;
+        const y = Math.floor(Math.random() * (80 - 20 + 1)) + 20;
+        const top = `${y}%`;
+        const minDur = 2.0;
+        const maxDur = 4.5;
+        const duration = Number((Math.random() * (maxDur - minDur) + minDur).toFixed(2));
+        setFishList((prev) => [...prev, { id, top, duration, dir: "rtl" }]);
       }
 
       // Update Caps Lock state
@@ -199,7 +247,8 @@ function App() {
       if (newChar && newChar === previousCharRef.current) {
         setAnimationKey((prev) => prev + 1);
       }
-      previousCharRef.current = newChar || (key === "Shift" ? previousCharRef.current : "");
+      previousCharRef.current =
+        newChar || (key === "Shift" ? previousCharRef.current : "");
 
       // Update character and typed sequence
       if (newChar) {
@@ -229,6 +278,12 @@ function App() {
       } else if (code === "ShiftRight") {
         setRightShiftPressed(false);
       }
+      // Hide bear on space release
+      if (code === 'Space') {
+        event.preventDefault();
+        setBearVisible(false);
+      }
+      // nothing special on Enter keyup — fish hides automatically after animation
     };
 
     // Add event listeners
@@ -250,6 +305,11 @@ function App() {
       }
     };
   }, []);
+
+  // Remove a fish when its animation ends
+  const removeFish = (id: number) => {
+    setFishList((prev) => prev.filter((x) => x.id !== id));
+  };
 
   return (
     <div
@@ -274,6 +334,25 @@ function App() {
         }`}
       />
 
+      {/* Bear (pops from bottom center when Space is held) */}
+      <img
+        src={bearImg}
+        alt="Bear"
+        className={`bear ${bearVisible ? "bear-pop" : ""}`}
+      />
+
+      {/* Fish (swim left -> right on Enter) - multiple instances */}
+      {fishList.map((f) => (
+        <img
+          key={f.id}
+          src={fishImg}
+          alt="Fish"
+          className={`fish ${f.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"}`}
+          style={{ top: f.top, animationDuration: `${f.duration}s` } as React.CSSProperties}
+          onAnimationEnd={() => removeFish(f.id)}
+        />
+      ))}
+
       {displayChar ? (
         <div className="display-container">
           <div
@@ -297,6 +376,7 @@ function App() {
         </div>
       ) : (
         <div className="instructions">
+          <img height="200" title="smashy keys logo" src={smashyKeys} />
           <h1>Press any key!</h1>
           <p>Letters, numbers, or arrow keys</p>
           <p className="caps-lock-hint">Use Caps Lock for UPPERCASE letters!</p>
