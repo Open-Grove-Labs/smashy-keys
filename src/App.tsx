@@ -30,6 +30,7 @@ function App() {
   const previousCharRef = useRef<string>("");
   const typedSequenceRef = useRef<string>("");
   const bearTimeoutRef = useRef<number | null>(null);
+  const duckTimeoutRef = useRef<number | null>(null);
 
   const { fishList, spawnFish, removeFish } = useFishSpawner();
   const { className: displayCharClass, ensureCharClass } = useCharClass();
@@ -91,6 +92,19 @@ function App() {
         bearTimeoutRef.current = window.setTimeout(() => {
           setBearVisible(false);
           bearTimeoutRef.current = null;
+        }, 2000);
+      }
+
+      // If the word 'duck' was typed, show the duck briefly
+      if (longestMatch.toLowerCase() === "duck") {
+        if (duckTimeoutRef.current) {
+          clearTimeout(duckTimeoutRef.current);
+          duckTimeoutRef.current = null;
+        }
+        setDuckVisible(true);
+        duckTimeoutRef.current = window.setTimeout(() => {
+          setDuckVisible(false);
+          duckTimeoutRef.current = null;
         }, 2000);
       }
 
@@ -254,6 +268,9 @@ function App() {
       }
       if (bearTimeoutRef.current) {
         clearTimeout(bearTimeoutRef.current);
+      }
+      if (duckTimeoutRef.current) {
+        clearTimeout(duckTimeoutRef.current);
       }
     };
   }, []);
