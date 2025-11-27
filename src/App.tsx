@@ -10,6 +10,9 @@ import smashyKeys from "./assets/smashy-keys.webp";
 
 import { words } from "./words";
 import { names } from "./names";
+import { useDynamicSheet } from "./hooks/useDynamicSheet";
+import { getCharColor, getRandomBackgroundColor } from "./utils/colors";
+import { randomFishTop, randomFishDuration } from "./utils/fish";
 
 function App() {
   const [displayChar, setDisplayChar] = useState("");
@@ -32,143 +35,33 @@ function App() {
     dir: "ltr" | "rtl";
   }[]>([]);
   const fishIdRef = useRef(0);
-  // Shared dynamic stylesheet and rule trackers (avoid per-element <style> blocks)
-  const dynamicStyleElRef = useRef<HTMLStyleElement | null>(null);
-  const dynamicSheetRef = useRef<CSSStyleSheet | null>(null);
+  const { insertRule, removeRuleContaining } = useDynamicSheet();
   const fishRuleRefs = useRef<Record<number, string>>({});
   const charRuleRefs = useRef<Record<string, string>>({});
   const [displayCharClass, setDisplayCharClass] = useState<string>("");
 
-  const ensureDynamicSheet = useCallback(() => {
-    if (dynamicSheetRef.current) return;
-    if (typeof document === "undefined") return;
-    const id = "dynamic-styles";
-    let el = document.getElementById(id) as HTMLStyleElement | null;
-    if (!el) {
-      el = document.createElement("style");
-      el.id = id;
-      document.head.appendChild(el);
-    }
-    dynamicStyleElRef.current = el;
-    dynamicSheetRef.current = el.sheet as CSSStyleSheet;
-  }, []);
-
   // Helper to spawn a fish with randomized vertical position and duration
   const spawnFish = useCallback((dir: "ltr" | "rtl") => {
     const id = ++fishIdRef.current;
-    const y = Math.floor(Math.random() * (80 - 20 + 1)) + 20; // 20..80
-    const top = `${y}%`;
-    const minDur = 2.0;
-    const maxDur = 4.5;
-    const duration = Number((Math.random() * (maxDur - minDur) + minDur).toFixed(2));
+    const top = randomFishTop();
+    const duration = randomFishDuration();
     setFishList((prev) => [...prev, { id, top, duration, dir }]);
     // create a per-fish CSS rule in the shared dynamic stylesheet
     try {
-      ensureDynamicSheet();
       const className = `fish-id-${id}`;
-      const rule = `.${"fish"}.${className} { top: ${top}; animation-duration: ${duration}s; }`;
-      const sheet = dynamicSheetRef.current;
-      if (sheet) {
-        sheet.insertRule(rule, sheet.cssRules.length);
-        fishRuleRefs.current[id] = rule;
+      const rule = `.fish.${className} { top: ${top}; animation-duration: ${duration}s; }`;
+      const inserted = insertRule(rule);
+      if (inserted) {
+        fishRuleRefs.current[id] = inserted;
       }
-    } catch (e) {
-      void e;
+    } catch {
+      // ignore
     }
-  }, [ensureDynamicSheet]);
+  }, [insertRule]);
 
   
 
-  // Predefined bright colors for letters and numbers
-  const getCharColor = useCallback((char: string): string => {
-    const colors = [
-      "#ff6b6b",
-      "#4ecdc4",
-      "#45b7d1",
-      "#96ceb4",
-      "#feca57",
-      "#ff9ff3",
-      "#54a0ff",
-      "#5f27cd",
-      "#00d2d3",
-      "#ff9f43",
-      "#feca57",
-      "#48dbfb",
-      "#0abde3",
-      "#006ba6",
-      "#f0932b",
-      "#eb4d4b",
-      "#6c5ce7",
-      "#a29bfe",
-      "#fd79a8",
-      "#fdcb6e",
-      "#e17055",
-      "#81ecec",
-      "#74b9ff",
-      "#00cec9",
-      "#55a3ff",
-      "#ff7675",
-      "#fd79a8",
-      "#a29bfe",
-      "#6c5ce7",
-      "#00b894",
-      "#00cec9",
-      "#0984e3",
-      "#6c5ce7",
-      "#e84393",
-      "#fd79a8",
-      "#fdcb6e",
-    ];
-
-    if (char >= "0" && char <= "9") {
-      return colors[char.charCodeAt(0) - "0".charCodeAt(0)];
-    }
-
-    // Handle both lowercase and uppercase letters using the same color mapping
-    if (char >= "a" && char <= "z") {
-      return colors[10 + (char.charCodeAt(0) - "a".charCodeAt(0))];
-    }
-
-    if (char >= "A" && char <= "Z") {
-      return colors[10 + (char.charCodeAt(0) - "A".charCodeAt(0))];
-    }
-
-    return "#ffffff";
-  }, []);
-
-  // Generate random bright background colors
-  const getRandomBackgroundColor = (): string => {
-    const backgroundColors = [
-      "#ff6b6b",
-      "#4ecdc4",
-      "#45b7d1",
-      "#96ceb4",
-      "#feca57",
-      "#ff9ff3",
-      "#54a0ff",
-      "#5f27cd",
-      "#00d2d3",
-      "#ff9f43",
-      "#48dbfb",
-      "#0abde3",
-      "#f0932b",
-      "#eb4d4b",
-      "#6c5ce7",
-      "#fd79a8",
-      "#fdcb6e",
-      "#e17055",
-      "#81ecec",
-      "#74b9ff",
-      "#00cec9",
-      "#55a3ff",
-      "#ff7675",
-      "#a29bfe",
-      "#00b894",
-    ];
-    return backgroundColors[
-      Math.floor(Math.random() * backgroundColors.length)
-    ];
-  };
+  // color utilities moved to `src/utils/colors.ts`
 
   // Check if typed sequence contains any complete words
   const checkForWords = useCallback((sequence: string) => {
@@ -220,21 +113,17 @@ function App() {
       const className = `char-${safe}`;
       if (!charRuleRefs.current[className]) {
         try {
-          ensureDynamicSheet();
           const color = getCharColor(char);
           const rule = `.${className} { --char-color: ${color}; }`;
-          const sheet = dynamicSheetRef.current;
-          if (sheet) {
-            sheet.insertRule(rule, sheet.cssRules.length);
-            charRuleRefs.current[className] = rule;
-          }
-        } catch (e) {
-          void e;
+          const inserted = insertRule(rule);
+          if (inserted) charRuleRefs.current[className] = inserted;
+        } catch {
+          // ignore
         }
       }
       setDisplayCharClass(className);
     },
-    [getCharColor, ensureDynamicSheet]
+    [insertRule]
   );
 
   useEffect(() => {
@@ -372,38 +261,12 @@ function App() {
     };
   }, []);
 
-  // Cleanup dynamic stylesheet on unmount
-  useEffect(() => {
-    return () => {
-      if (dynamicStyleElRef.current && dynamicStyleElRef.current.parentNode) {
-        dynamicStyleElRef.current.parentNode.removeChild(dynamicStyleElRef.current);
-      }
-      dynamicStyleElRef.current = null;
-      dynamicSheetRef.current = null;
-      fishRuleRefs.current = {};
-      charRuleRefs.current = {};
-    };
-  }, []);
-
   // Remove a fish when its animation ends
   const removeFish = (id: number) => {
     setFishList((prev) => prev.filter((x) => x.id !== id));
-    const sheet = dynamicSheetRef.current;
-    const ruleText = fishRuleRefs.current[id];
-    if (sheet && ruleText) {
-      for (let i = 0; i < sheet.cssRules.length; i++) {
-        try {
-          const r = sheet.cssRules[i] as CSSStyleRule;
-          if (r.cssText === ruleText || r.cssText.indexOf(`fish-id-${id}`) !== -1) {
-            sheet.deleteRule(i);
-            break;
-          }
-        } catch {
-          // ignore
-        }
-      }
-      delete fishRuleRefs.current[id];
-    }
+    // remove any rule referencing this fish-id
+    removeRuleContaining(`fish-id-${id}`);
+    delete fishRuleRefs.current[id];
   };
 
   return (
