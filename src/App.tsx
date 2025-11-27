@@ -24,6 +24,7 @@ function App() {
   const [wordFadingOut, setWordFadingOut] = useState(false);
   const [bearVisible, setBearVisible] = useState(false);
   const [duckVisible, setDuckVisible] = useState(false);
+  const [typedWords, setTypedWords] = useState<string[]>([]);
 
   // Use refs for values that don't need to trigger re-renders
   const wordTimeoutRef = useRef<number | null>(null);
@@ -65,7 +66,10 @@ function App() {
       }
 
       // Show the word
-      setFoundWord(longestMatch.toLowerCase());
+      const found = longestMatch.toLowerCase();
+      setFoundWord(found);
+      // add to typed-words list shown on the right
+      setTypedWords((prev) => [found, ...prev]);
       setWordFadingOut(false);
 
       // If the word 'fish' was typed, spawn a bunch of fishes
@@ -342,6 +346,17 @@ function App() {
           <p className="caps-lock-hint">Use Caps Lock for UPPERCASE letters!</p>
         </div>
       )}
+      {/* Right-side list of typed words */}
+      <aside className="word-list" aria-live="polite">
+        <h3>Typed Words</h3>
+        <ul>
+          {typedWords.map((w, i) => (
+            <li key={`${w}-${i}`} className="word-list-item">
+              {w}
+            </li>
+          ))}
+        </ul>
+      </aside>
     </div>
   );
 }

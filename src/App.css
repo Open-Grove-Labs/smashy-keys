@@ -209,6 +209,43 @@ h1 {
   transform: translate(-50%, 0%);
 }
 
+/* Right-side typed-words list */
+.word-list {
+  position: fixed;
+  top: 8vh;
+  right: 12px;
+  width: auto;
+  max-height: 80vh;
+  color: #fff;
+  padding: 4px 8px;
+  z-index: 1300;
+  overflow: auto;
+  font-family: Arial, sans-serif;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.word-list h3 {
+  display: none;
+}
+
+.word-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.word-list-item {
+  padding: 2px 0;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
 /* Fish swim across */
 .fish {
   position: fixed;
