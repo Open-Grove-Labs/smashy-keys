@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Roboto+Slab:wght@400;700&family=Rubik:wght@400;700&family=Space+Mono&display=swap');
+
 .toddler-app {
   width: 100vw;
   height: 100vh;
@@ -245,6 +247,12 @@ h1 {
   font-weight: 600;
   text-transform: lowercase;
 }
+
+/* Alternate fonts for repeated presses */
+.font-a { font-family: 'Fredoka One', 'Arial Black', Arial, sans-serif; }
+.font-b { font-family: 'Roboto Slab', Georgia, 'Times New Roman', serif; }
+.font-c { font-family: 'Space Mono', 'Courier New', Courier, monospace; }
+.font-d { font-family: 'Rubik', 'Trebuchet MS', 'Helvetica Neue', Arial, sans-serif; }
 
 /* Fish swim across */
 .fish {

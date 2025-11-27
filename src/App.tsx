@@ -24,6 +24,8 @@ function App() {
   const [wordFadingOut, setWordFadingOut] = useState(false);
   const [bearVisible, setBearVisible] = useState(false);
   const [duckVisible, setDuckVisible] = useState(false);
+  const [fontIndex, setFontIndex] = useState(0);
+  const fontClasses = ["font-a", "font-b", "font-c", "font-d"];
   const [typedWords, setTypedWords] = useState<string[]>([]);
 
   // Use refs for values that don't need to trigger re-renders
@@ -201,6 +203,11 @@ function App() {
       // Check if same character is being pressed again and trigger bounce animation
       if (newChar && newChar === previousCharRef.current) {
         setAnimationKey((prev) => prev + 1);
+        // rotate font on repeated presses
+        setFontIndex((prev) => (prev + 1) % fontClasses.length);
+      } else if (newChar) {
+        // reset to default font for new characters
+        setFontIndex(0);
       }
       previousCharRef.current =
         newChar || (key === "Shift" ? previousCharRef.current : "");
@@ -257,7 +264,7 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [checkForWords, ensureCharClass, spawnFish]);
+  }, [checkForWords, ensureCharClass, spawnFish, fontClasses.length]);
 
   // Keep the CSS variable for background in sync (avoid inline root styles)
   useEffect(() => {
@@ -329,7 +336,7 @@ function App() {
 
       {displayChar ? (
         <div className="display-container">
-          <div key={animationKey} className={`display-char ${displayCharClass}`}>
+          <div key={animationKey} className={`display-char ${displayCharClass} ${fontClasses[fontIndex]}`}>
             {displayChar}
           </div>
           {foundWord && (
