@@ -10,9 +10,9 @@ import smashyKeys from "./assets/smashy-keys.webp";
 
 import { words } from "./words";
 import { names } from "./names";
-import { useDynamicSheet } from "./hooks/useDynamicSheet";
-import { getCharColor, getRandomBackgroundColor } from "./utils/colors";
-import { randomFishTop, randomFishDuration } from "./utils/fish";
+import { useFishSpawner } from "./hooks/useFishSpawner";
+import { useCharClass } from "./hooks/useCharClass";
+import { getRandomBackgroundColor } from "./utils/colors";
 
 function App() {
   const [displayChar, setDisplayChar] = useState("");
@@ -28,36 +28,12 @@ function App() {
   const wordTimeoutRef = useRef<number | null>(null);
   const previousCharRef = useRef<string>("");
   const typedSequenceRef = useRef<string>("");
-  const [fishList, setFishList] = useState<{
-    id: number;
-    top: string;
-    duration: number;
-    dir: "ltr" | "rtl";
-  }[]>([]);
-  const fishIdRef = useRef(0);
-  const { insertRule, removeRuleContaining } = useDynamicSheet();
-  const fishRuleRefs = useRef<Record<number, string>>({});
-  const charRuleRefs = useRef<Record<string, string>>({});
-  const [displayCharClass, setDisplayCharClass] = useState<string>("");
+
+  const { fishList, spawnFish, removeFish } = useFishSpawner();
+  const { className: displayCharClass, ensureCharClass } = useCharClass();
 
   // Helper to spawn a fish with randomized vertical position and duration
-  const spawnFish = useCallback((dir: "ltr" | "rtl") => {
-    const id = ++fishIdRef.current;
-    const top = randomFishTop();
-    const duration = randomFishDuration();
-    setFishList((prev) => [...prev, { id, top, duration, dir }]);
-    // create a per-fish CSS rule in the shared dynamic stylesheet
-    try {
-      const className = `fish-id-${id}`;
-      const rule = `.fish.${className} { top: ${top}; animation-duration: ${duration}s; }`;
-      const inserted = insertRule(rule);
-      if (inserted) {
-        fishRuleRefs.current[id] = inserted;
-      }
-    } catch {
-      // ignore
-    }
-  }, [insertRule]);
+  // fish spawning is handled by `useFishSpawner` hook
 
   
 
@@ -103,28 +79,7 @@ function App() {
   }, []);
 
   // Create or reuse a CSS class for the given character color to avoid inline styles
-  const ensureCharClass = useCallback(
-    (char: string) => {
-      if (!/^[a-zA-Z0-9]$/.test(char)) {
-        setDisplayCharClass("");
-        return;
-      }
-      const safe = char.replace(/[^a-zA-Z0-9]/g, (c) => `_${c.charCodeAt(0)}`);
-      const className = `char-${safe}`;
-      if (!charRuleRefs.current[className]) {
-        try {
-          const color = getCharColor(char);
-          const rule = `.${className} { --char-color: ${color}; }`;
-          const inserted = insertRule(rule);
-          if (inserted) charRuleRefs.current[className] = inserted;
-        } catch {
-          // ignore
-        }
-      }
-      setDisplayCharClass(className);
-    },
-    [insertRule]
-  );
+  // character classes are handled by `useCharClass` hook
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -262,12 +217,7 @@ function App() {
   }, []);
 
   // Remove a fish when its animation ends
-  const removeFish = (id: number) => {
-    setFishList((prev) => prev.filter((x) => x.id !== id));
-    // remove any rule referencing this fish-id
-    removeRuleContaining(`fish-id-${id}`);
-    delete fishRuleRefs.current[id];
-  };
+  // fish removal handled by `useFishSpawner`'s removeFish
 
   return (
     <div className="toddler-app">
