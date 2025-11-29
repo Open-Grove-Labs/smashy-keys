@@ -63,6 +63,30 @@
   opacity: 0.9;
 }
 
+/* Mobile letter display */
+.mobile-letter-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  height: 100vh;
+  width: 100%;
+  padding: 3rem 0;
+}
+
+.mobile-letter {
+  font-size: 10rem;
+  font-weight: bold;
+  font-family: 'Arial Black', Arial, sans-serif;
+  color: var(--char-color, #ffffff);
+  text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  animation: bounce 0.6s ease;
+}
+
 /* Found word display */
 .found-word {
   position: absolute;

@@ -14,8 +14,19 @@ import { useSpawner } from "./hooks/useSpawner";
 import { useCharClass } from "./hooks/useCharClass";
 import { randomFishTop, randomFishDuration } from "./utils/fish";
 import { getRandomBackgroundColor } from "./utils/colors";
+import { buildPrefixTree } from "./utils/prefixTree";
 
 function App() {
+  // Detect if running on mobile device
+  const [isMobile, setIsMobile] = useState(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isSmallScreen = window.innerWidth <= 768;
+    
+    return isMobileDevice || (isTouchDevice && isSmallScreen);
+  });
+
   const [displayChar, setDisplayChar] = useState("");
   const [backgroundColor, setBackgroundColor] = useState("#ff6b6b");
   const [leftShiftPressed, setLeftShiftPressed] = useState(false);
@@ -28,6 +39,7 @@ function App() {
   const [fontIndex, setFontIndex] = useState(0);
   const fontClasses = ["font-a", "font-b", "font-c", "font-d"];
   const [typedWords, setTypedWords] = useState<string[]>([]);
+  const [availableLetters, setAvailableLetters] = useState<string[]>([]);
 
   // Use refs for values that don't need to trigger re-renders
   const wordTimeoutRef = useRef<number | null>(null);
@@ -52,6 +64,9 @@ function App() {
     return `${y}%`;
   }, randomFishDuration);
   const { className: displayCharClass, ensureCharClass } = useCharClass();
+
+  // Build prefix tree for mobile word detection
+  const prefixTreeRef = useRef(buildPrefixTree([...words, ...names]));
 
   // Helper comment: fish/horse spawning handled by generic `useSpawner` hook
 
@@ -292,8 +307,55 @@ function App() {
     document.documentElement.style.setProperty("--bg-color", backgroundColor);
   }, [backgroundColor]);
 
+  // Handle window resize to update mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const ua = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      
+      setIsMobile(isMobileDevice || (isTouchDevice && isSmallScreen));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle mobile tap to select random letters
+  const handleMobileTap = useCallback(() => {
+    const topLevelKeys = Object.keys(prefixTreeRef.current);
+    if (topLevelKeys.length === 0) return;
+
+    // Randomly select 3 letters
+    const shuffled = [...topLevelKeys].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, 3);
+    setAvailableLetters(selected);
+    
+    // Change background color
+    setBackgroundColor(getRandomBackgroundColor());
+    
+    // Remove the starting text by setting a display char
+    setDisplayChar('');
+  }, []);
+
+  // Add touch event listener for mobile
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleTouch = (event: TouchEvent) => {
+      event.preventDefault();
+      handleMobileTap();
+    };
+
+    window.addEventListener('touchstart', handleTouch, { passive: false });
+    return () => window.removeEventListener('touchstart', handleTouch);
+  }, [isMobile, handleMobileTap]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
+    console.log('Device detection:', isMobile ? 'MOBILE' : 'DESKTOP');
+    
     return () => {
       if (wordTimeoutRef.current) {
         clearTimeout(wordTimeoutRef.current);
@@ -305,7 +367,7 @@ function App() {
         clearTimeout(duckTimeoutRef.current);
       }
     };
-  }, []);
+  }, [isMobile]);
 
   // Remove a fish when its animation ends
   // fish removal handled by `useFishSpawner`'s removeFish
@@ -377,12 +439,26 @@ function App() {
             </div>
           )}
         </div>
+      ) : isMobile && availableLetters.length > 0 ? (
+        <div className="mobile-letter-display">
+          {availableLetters.map((letter, idx) => (
+            <div key={`${letter}-${idx}`} className="mobile-letter">
+              {letter.toUpperCase()}
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="instructions">
           <img height="200" title="smashy keys logo" src={smashyKeys} />
-          <h1>Press any key!</h1>
-          <p>Letters, numbers, or arrow keys</p>
-          <p className="caps-lock-hint">Use Caps Lock for UPPERCASE letters!</p>
+          {isMobile ? (
+            <h1>Tap anywhere!</h1>
+          ) : (
+            <>
+              <h1>Press any key!</h1>
+              <p>Letters, numbers, or arrow keys</p>
+              <p className="caps-lock-hint">Use Caps Lock for UPPERCASE letters!</p>
+            </>
+          )}
         </div>
       )}
       {/* Right-side list of typed words */}
