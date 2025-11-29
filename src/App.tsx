@@ -3,15 +3,16 @@ import "./App.css";
 import squirrelImg from "./assets/animals/squirrel.webp";
 import bearImg from "./assets/animals/bear.webp";
 import fishImg from "./assets/animals/fish.webp";
-// import horseImg from "./assets/animals/horse.webp";
+import horseImg from "./assets/animals/horse.webp";
 import duckImg from "./assets/animals/duck.webp";
 
 import smashyKeys from "./assets/smashy-keys.webp";
 
 import { words } from "./words";
 import { names } from "./names";
-import { useFishSpawner } from "./hooks/useFishSpawner";
+import { useSpawner } from "./hooks/useSpawner";
 import { useCharClass } from "./hooks/useCharClass";
+import { randomFishTop, randomFishDuration } from "./utils/fish";
 import { getRandomBackgroundColor } from "./utils/colors";
 
 function App() {
@@ -35,11 +36,24 @@ function App() {
   const bearTimeoutRef = useRef<number | null>(null);
   const duckTimeoutRef = useRef<number | null>(null);
 
-  const { fishList, spawnFish, removeFish } = useFishSpawner();
+  const {
+    list: fishList,
+    spawn: spawnFish,
+    remove: removeFish,
+  } = useSpawner("fish", randomFishTop, randomFishDuration);
+
+  const {
+    list: horseList,
+    spawn: spawnHorse,
+    remove: removeHorse,
+  } = useSpawner("horse", () => {
+    // keep horses lower on the page
+    const y = Math.floor(Math.random() * (88 - 70 + 1)) + 70; // 70..88
+    return `${y}%`;
+  }, randomFishDuration);
   const { className: displayCharClass, ensureCharClass } = useCharClass();
 
-  // Helper to spawn a fish with randomized vertical position and duration
-  // fish spawning is handled by `useFishSpawner` hook
+  // Helper comment: fish/horse spawning handled by generic `useSpawner` hook
 
   
 
@@ -114,6 +128,13 @@ function App() {
         }, 2000);
       }
 
+      // If the word 'horse' was typed, spawn a running horse
+      if (longestMatch.toLowerCase() === "horse") {
+        // spawn one horse running left->right (or sometimes rtl)
+        const dir = Math.random() < 0.85 ? "ltr" : "rtl";
+        spawnHorse(dir);
+      }
+
       // Start fade out after 1.5 seconds, then hide completely after fade animation
       wordTimeoutRef.current = setTimeout(() => {
         setWordFadingOut(true);
@@ -125,7 +146,7 @@ function App() {
         }, 500);
       }, 6000);
     }
-  }, [spawnFish]);
+  }, [spawnFish, spawnHorse]);
 
   // Create or reuse a CSS class for the given character color to avoid inline styles
   // character classes are handled by `useCharClass` hook
@@ -331,6 +352,17 @@ function App() {
           alt="Fish"
           className={`fish fish-id-${f.id} ${f.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"}`}
           onAnimationEnd={() => removeFish(f.id)}
+        />
+      ))}
+
+      {/* Horses (run across when spawned) */}
+      {horseList.map((h) => (
+        <img
+          key={`horse-${h.id}`}
+          src={horseImg}
+          alt="Horse"
+          className={`horse horse-id-${h.id} ${h.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"}`}
+          onAnimationEnd={() => removeHorse(h.id)}
         />
       ))}
 
