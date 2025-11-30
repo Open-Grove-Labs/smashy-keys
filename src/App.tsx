@@ -12,28 +12,17 @@ import { words } from "./words";
 import { names } from "./names";
 import { useSpawner } from "./hooks/useSpawner";
 import { useCharClass } from "./hooks/useCharClass";
+import { useDeviceDetection } from "./hooks/useDeviceDetection";
+import { useWordDetection } from "./hooks/useWordDetection";
 import { randomFishTop, randomFishDuration } from "./utils/fish";
 import { getRandomBackgroundColor } from "./utils/colors";
+import { getDisplayCharFromKey } from "./utils/keyboard";
 import { buildPrefixTree } from "./utils/prefixTree";
 import { getNextChars } from "./utils/prefixTree";
 
 function App() {
-  // Detect if running on mobile device
-  const [isMobile, setIsMobile] = useState(() => {
-    const ua = navigator.userAgent.toLowerCase();
-    const isMobileDevice =
-      /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
-    const isTouchDevice =
-      "ontouchstart" in window || navigator.maxTouchPoints > 0;
-    const isSmallScreen = window.innerWidth <= 768;
-
-    return isMobileDevice || (isTouchDevice && isSmallScreen);
-  });
-
-  // Detect if mobile device is in landscape mode
-  const [isLandscape, setIsLandscape] = useState(() => {
-    return window.innerWidth > window.innerHeight;
-  });
+  // Device detection
+  const { isMobile, isLandscape } = useDeviceDetection();
 
   const [displayChar, setDisplayChar] = useState("");
   const [backgroundColor, setBackgroundColor] = useState("#ff6b6b");
@@ -53,11 +42,8 @@ function App() {
   const [desktopNextLetters, setDesktopNextLetters] = useState<string[]>([]);
 
   // Use refs for values that don't need to trigger re-renders
-  const wordTimeoutRef = useRef<number | null>(null);
   const previousCharRef = useRef<string>("");
   const typedSequenceRef = useRef<string>("");
-  const bearTimeoutRef = useRef<number | null>(null);
-  const duckTimeoutRef = useRef<number | null>(null);
 
   const {
     list: fishList,
@@ -83,105 +69,27 @@ function App() {
   // Build prefix tree for mobile word detection
   const prefixTreeRef = useRef(buildPrefixTree([...words, ...names]));
 
-  // Helper comment: fish/horse spawning handled by generic `useSpawner` hook
-
-  // color utilities moved to `src/utils/colors.ts`
-
-  // Check if typed sequence contains any complete words
-  const checkForWords = useCallback(
-    (sequence: string) => {
-      const lowerSequence = sequence.toLowerCase();
-
-      // Check if the sequence itself is an exact match
-      let longestMatch = "";
-      for (const word of [...words, ...names]) {
-        if (lowerSequence === word.toLowerCase()) {
-          longestMatch = word;
-          break;
-        }
-      }
-
-      if (longestMatch) {
-        // Clear any existing timeout
-        if (wordTimeoutRef.current) {
-          clearTimeout(wordTimeoutRef.current);
-          wordTimeoutRef.current = null;
-        }
-
-        // Show the word
-        const found = longestMatch.toLowerCase();
-        setFoundWord(found);
-        // add to typed-words list shown on the right
-        setTypedWords((prev) => [found, ...prev]);
-        setWordFadingOut(false);
-
-        // If the word 'fish' was typed, spawn a bunch of fishes
-        if (longestMatch.toLowerCase() === "fish") {
-          // spawn 6-10 fish with slight stagger
-          const count = 6 + Math.floor(Math.random() * 5);
-          for (let i = 0; i < count; i++) {
-            const delay = Math.floor(Math.random() * 600); // up to 600ms stagger
-            setTimeout(() => {
-              // randomize direction sometimes
-              const dir = Math.random() < 0.85 ? "ltr" : "rtl";
-              spawnFish(dir);
-            }, delay);
-          }
-        }
-
-        // If the word 'bear' was typed, show the bear briefly
-        if (longestMatch.toLowerCase() === "bear") {
-          if (bearTimeoutRef.current) {
-            clearTimeout(bearTimeoutRef.current);
-            bearTimeoutRef.current = null;
-          }
-          setBearVisible(true);
-          bearTimeoutRef.current = window.setTimeout(() => {
-            setBearVisible(false);
-            bearTimeoutRef.current = null;
-          }, 2000);
-        }
-
-        // If the word 'duck' was typed, show the duck briefly
-        if (longestMatch.toLowerCase() === "duck") {
-          if (duckTimeoutRef.current) {
-            clearTimeout(duckTimeoutRef.current);
-            duckTimeoutRef.current = null;
-          }
-          setDuckVisible(true);
-          duckTimeoutRef.current = window.setTimeout(() => {
-            setDuckVisible(false);
-            duckTimeoutRef.current = null;
-          }, 2000);
-        }
-
-        // If the word 'horse' was typed, spawn a running horse
-        if (longestMatch.toLowerCase() === "horse") {
-          // spawn one horse running left->right (or sometimes rtl)
-          const dir = Math.random() < 0.85 ? "ltr" : "rtl";
-          spawnHorse(dir);
-        }
-
-        // Start fade out after 1.5 seconds, then hide completely after fade animation
-        wordTimeoutRef.current = setTimeout(() => {
-          setWordFadingOut(true);
-          // Hide completely after fade animation (0.5s)
-          setTimeout(() => {
-            setFoundWord("");
-            setWordFadingOut(false);
-            wordTimeoutRef.current = null;
-          }, 500);
-        }, 6000);
-      }
+  // Word detection and special behaviors
+  const { checkForWords, cleanup: cleanupWordDetection } = useWordDetection({
+    onWordFound: (word: string) => {
+      setFoundWord(word);
+      setTypedWords((prev) => [word, ...prev]);
+      setWordFadingOut(false);
     },
-    [spawnFish, spawnHorse]
-  );
-
-  // Create or reuse a CSS class for the given character color to avoid inline styles
-  // character classes are handled by `useCharClass` hook
+    spawnFish,
+    spawnHorse,
+    setBearVisible,
+    setDuckVisible,
+    setFoundWord,
+    setWordFadingOut,
+    setTypedWords,
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Prevent default behavior for all keys
+      event.preventDefault();
+      
       const key = event.key;
       const code = event.code;
 
@@ -191,9 +99,8 @@ function App() {
       } else if (code === "ShiftRight") {
         setRightShiftPressed(true);
       }
-      // Space bar -> bear popup (only on initial keydown, prevent page scroll)
+      // Space bar -> bear popup (only on initial keydown)
       if ((code === "Space" || key === " ") && !event.repeat) {
-        event.preventDefault();
         setBearVisible(true);
       }
       // Delete/Backspace -> duck popup (hold to show; release hides)
@@ -204,57 +111,23 @@ function App() {
           key === "Backspace") &&
         !event.repeat
       ) {
-        event.preventDefault();
         setDuckVisible(true);
       }
       // Enter -> spawn a fish swimming left->right (each press spawns one)
       if (code === "Enter") {
-        event.preventDefault();
         spawnFish("ltr");
       }
 
       // Tab -> spawn a flipped fish swimming right->left
       if (code === "Tab") {
-        // prevent default so Tab doesn't move focus
-        event.preventDefault();
         spawnFish("rtl");
       }
-
-      // Update Caps Lock state
-      // setIsCapsLock(event.getModifierState('CapsLock'))
 
       // Change background color for every keypress
       setBackgroundColor(getRandomBackgroundColor());
 
-      let newChar = "";
-
-      // Handle letters and numbers
-      if (/^[a-zA-Z0-9]$/.test(key)) {
-        // For letters, use the actual case based on Caps Lock and Shift
-        if (/^[a-zA-Z]$/.test(key)) {
-          // Check if Caps Lock is on
-          const capsLockOn = event.getModifierState("CapsLock");
-          const shiftPressed = event.shiftKey;
-
-          // Determine if letter should be uppercase
-          const shouldBeUppercase = capsLockOn !== shiftPressed; // XOR logic
-
-          newChar = shouldBeUppercase ? key.toUpperCase() : key.toLowerCase();
-        } else {
-          // For numbers, always show as-is
-          newChar = key;
-        }
-      }
-      // Handle arrow keys
-      else if (key === "ArrowUp") {
-        newChar = "UP";
-      } else if (key === "ArrowDown") {
-        newChar = "DOWN";
-      } else if (key === "ArrowLeft") {
-        newChar = "LEFT";
-      } else if (key === "ArrowRight") {
-        newChar = "RIGHT";
-      }
+      // Get display character from keyboard event
+      const newChar = getDisplayCharFromKey(event);
 
       // Update character and typed sequence
       if (newChar) {
@@ -295,10 +168,6 @@ function App() {
           if (foundWord) {
             setFoundWord("");
             setWordFadingOut(false);
-            if (wordTimeoutRef.current) {
-              clearTimeout(wordTimeoutRef.current);
-              wordTimeoutRef.current = null;
-            }
           }
           
           checkForWords(finalSequence);
@@ -340,6 +209,9 @@ function App() {
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
+      // Prevent default behavior for all keys
+      event.preventDefault();
+      
       const code = event.code;
 
       // Handle shift key releases using event.code
@@ -350,7 +222,6 @@ function App() {
       }
       // Hide bear on space release
       if (code === "Space") {
-        event.preventDefault();
         setBearVisible(false);
       }
       // Hide duck on Delete/Backspace release
@@ -360,10 +231,8 @@ function App() {
         event.key === "Delete" ||
         event.key === "Backspace"
       ) {
-        event.preventDefault();
         setDuckVisible(false);
       }
-      // nothing special on Enter keyup — fish hides automatically after animation
     };
 
     // Add event listeners
@@ -381,30 +250,6 @@ function App() {
   useEffect(() => {
     document.documentElement.style.setProperty("--bg-color", backgroundColor);
   }, [backgroundColor]);
-
-  // Handle window resize to update mobile detection and orientation
-  useEffect(() => {
-    const handleResize = () => {
-      const ua = navigator.userAgent.toLowerCase();
-      const isMobileDevice =
-        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-          ua
-        );
-      const isTouchDevice =
-        "ontouchstart" in window || navigator.maxTouchPoints > 0;
-      const isSmallScreen = window.innerWidth <= 768;
-
-      setIsMobile(isMobileDevice || (isTouchDevice && isSmallScreen));
-      setIsLandscape(window.innerWidth > window.innerHeight);
-    };
-
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("orientationchange", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleResize);
-    };
-  }, []);
 
   // Handle mobile tap to select random letters
   const handleMobileTap = useCallback(() => {
@@ -488,22 +333,11 @@ function App() {
     return () => window.removeEventListener("touchstart", handleTouch);
   }, [isMobile, handleMobileTap, availableLetters.length]);
 
-  // Cleanup timeout on unmount
+  // Cleanup on unmount
   useEffect(() => {
     console.log("Device detection:", isMobile ? "MOBILE" : "DESKTOP");
-
-    return () => {
-      if (wordTimeoutRef.current) {
-        clearTimeout(wordTimeoutRef.current);
-      }
-      if (bearTimeoutRef.current) {
-        clearTimeout(bearTimeoutRef.current);
-      }
-      if (duckTimeoutRef.current) {
-        clearTimeout(duckTimeoutRef.current);
-      }
-    };
-  }, [isMobile]);
+    return cleanupWordDetection;
+  }, [isMobile, cleanupWordDetection]);
 
   // Remove a fish when its animation ends
   // fish removal handled by `useFishSpawner`'s removeFish
