@@ -21,11 +21,18 @@ function App() {
   // Detect if running on mobile device
   const [isMobile, setIsMobile] = useState(() => {
     const ua = navigator.userAgent.toLowerCase();
-    const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isMobileDevice =
+      /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+    const isTouchDevice =
+      "ontouchstart" in window || navigator.maxTouchPoints > 0;
     const isSmallScreen = window.innerWidth <= 768;
-    
+
     return isMobileDevice || (isTouchDevice && isSmallScreen);
+  });
+
+  // Detect if mobile device is in landscape mode
+  const [isLandscape, setIsLandscape] = useState(() => {
+    return window.innerWidth > window.innerHeight;
   });
 
   const [displayChar, setDisplayChar] = useState("");
@@ -60,11 +67,15 @@ function App() {
     list: horseList,
     spawn: spawnHorse,
     remove: removeHorse,
-  } = useSpawner("horse", () => {
-    // keep horses lower on the page
-    const y = Math.floor(Math.random() * (88 - 70 + 1)) + 70; // 70..88
-    return `${y}%`;
-  }, randomFishDuration);
+  } = useSpawner(
+    "horse",
+    () => {
+      // keep horses lower on the page
+      const y = Math.floor(Math.random() * (88 - 70 + 1)) + 70; // 70..88
+      return `${y}%`;
+    },
+    randomFishDuration
+  );
   const { className: displayCharClass, ensureCharClass } = useCharClass();
 
   // Build prefix tree for mobile word detection
@@ -72,98 +83,99 @@ function App() {
 
   // Helper comment: fish/horse spawning handled by generic `useSpawner` hook
 
-  
-
   // color utilities moved to `src/utils/colors.ts`
 
   // Check if typed sequence contains any complete words
-  const checkForWords = useCallback((sequence: string) => {
-    const lowerSequence = sequence.toLowerCase();
+  const checkForWords = useCallback(
+    (sequence: string) => {
+      const lowerSequence = sequence.toLowerCase();
 
-    // Find the longest word that matches at the end of the sequence
-    let longestMatch = "";
-    for (const word of [...words, ...names]) {
-      if (
-        lowerSequence.endsWith(word.toLowerCase()) &&
-        word.length > longestMatch.length
-      ) {
-        longestMatch = word;
-      }
-    }
-
-    if (longestMatch) {
-      // Clear any existing timeout
-      if (wordTimeoutRef.current) {
-        clearTimeout(wordTimeoutRef.current);
-        wordTimeoutRef.current = null;
-      }
-
-      // Show the word
-      const found = longestMatch.toLowerCase();
-      setFoundWord(found);
-      // add to typed-words list shown on the right
-      setTypedWords((prev) => [found, ...prev]);
-      setWordFadingOut(false);
-
-      // If the word 'fish' was typed, spawn a bunch of fishes
-      if (longestMatch.toLowerCase() === "fish") {
-        // spawn 6-10 fish with slight stagger
-        const count = 6 + Math.floor(Math.random() * 5);
-        for (let i = 0; i < count; i++) {
-          const delay = Math.floor(Math.random() * 600); // up to 600ms stagger
-          setTimeout(() => {
-            // randomize direction sometimes
-            const dir = Math.random() < 0.85 ? "ltr" : "rtl";
-            spawnFish(dir);
-          }, delay);
+      // Find the longest word that matches at the end of the sequence
+      let longestMatch = "";
+      for (const word of [...words, ...names]) {
+        if (
+          lowerSequence.endsWith(word.toLowerCase()) &&
+          word.length > longestMatch.length
+        ) {
+          longestMatch = word;
         }
       }
 
-      // If the word 'bear' was typed, show the bear briefly
-      if (longestMatch.toLowerCase() === "bear") {
-        if (bearTimeoutRef.current) {
-          clearTimeout(bearTimeoutRef.current);
-          bearTimeoutRef.current = null;
-        }
-        setBearVisible(true);
-        bearTimeoutRef.current = window.setTimeout(() => {
-          setBearVisible(false);
-          bearTimeoutRef.current = null;
-        }, 2000);
-      }
-
-      // If the word 'duck' was typed, show the duck briefly
-      if (longestMatch.toLowerCase() === "duck") {
-        if (duckTimeoutRef.current) {
-          clearTimeout(duckTimeoutRef.current);
-          duckTimeoutRef.current = null;
-        }
-        setDuckVisible(true);
-        duckTimeoutRef.current = window.setTimeout(() => {
-          setDuckVisible(false);
-          duckTimeoutRef.current = null;
-        }, 2000);
-      }
-
-      // If the word 'horse' was typed, spawn a running horse
-      if (longestMatch.toLowerCase() === "horse") {
-        // spawn one horse running left->right (or sometimes rtl)
-        const dir = Math.random() < 0.85 ? "ltr" : "rtl";
-        spawnHorse(dir);
-      }
-
-      // Start fade out after 1.5 seconds, then hide completely after fade animation
-      wordTimeoutRef.current = setTimeout(() => {
-        setWordFadingOut(true);
-        // Hide completely after fade animation (0.5s)
-        setTimeout(() => {
-          setFoundWord("");
-          setWordFadingOut(false);
+      if (longestMatch) {
+        // Clear any existing timeout
+        if (wordTimeoutRef.current) {
+          clearTimeout(wordTimeoutRef.current);
           wordTimeoutRef.current = null;
-        }, 500);
-      }, 6000);
-    }
-  }, [spawnFish, spawnHorse]);
+        }
+
+        // Show the word
+        const found = longestMatch.toLowerCase();
+        setFoundWord(found);
+        // add to typed-words list shown on the right
+        setTypedWords((prev) => [found, ...prev]);
+        setWordFadingOut(false);
+
+        // If the word 'fish' was typed, spawn a bunch of fishes
+        if (longestMatch.toLowerCase() === "fish") {
+          // spawn 6-10 fish with slight stagger
+          const count = 6 + Math.floor(Math.random() * 5);
+          for (let i = 0; i < count; i++) {
+            const delay = Math.floor(Math.random() * 600); // up to 600ms stagger
+            setTimeout(() => {
+              // randomize direction sometimes
+              const dir = Math.random() < 0.85 ? "ltr" : "rtl";
+              spawnFish(dir);
+            }, delay);
+          }
+        }
+
+        // If the word 'bear' was typed, show the bear briefly
+        if (longestMatch.toLowerCase() === "bear") {
+          if (bearTimeoutRef.current) {
+            clearTimeout(bearTimeoutRef.current);
+            bearTimeoutRef.current = null;
+          }
+          setBearVisible(true);
+          bearTimeoutRef.current = window.setTimeout(() => {
+            setBearVisible(false);
+            bearTimeoutRef.current = null;
+          }, 2000);
+        }
+
+        // If the word 'duck' was typed, show the duck briefly
+        if (longestMatch.toLowerCase() === "duck") {
+          if (duckTimeoutRef.current) {
+            clearTimeout(duckTimeoutRef.current);
+            duckTimeoutRef.current = null;
+          }
+          setDuckVisible(true);
+          duckTimeoutRef.current = window.setTimeout(() => {
+            setDuckVisible(false);
+            duckTimeoutRef.current = null;
+          }, 2000);
+        }
+
+        // If the word 'horse' was typed, spawn a running horse
+        if (longestMatch.toLowerCase() === "horse") {
+          // spawn one horse running left->right (or sometimes rtl)
+          const dir = Math.random() < 0.85 ? "ltr" : "rtl";
+          spawnHorse(dir);
+        }
+
+        // Start fade out after 1.5 seconds, then hide completely after fade animation
+        wordTimeoutRef.current = setTimeout(() => {
+          setWordFadingOut(true);
+          // Hide completely after fade animation (0.5s)
+          setTimeout(() => {
+            setFoundWord("");
+            setWordFadingOut(false);
+            wordTimeoutRef.current = null;
+          }, 500);
+        }, 6000);
+      }
+    },
+    [spawnFish, spawnHorse]
+  );
 
   // Create or reuse a CSS class for the given character color to avoid inline styles
   // character classes are handled by `useCharClass` hook
@@ -180,12 +192,18 @@ function App() {
         setRightShiftPressed(true);
       }
       // Space bar -> bear popup (only on initial keydown, prevent page scroll)
-      if ((code === 'Space' || key === ' ') && !event.repeat) {
+      if ((code === "Space" || key === " ") && !event.repeat) {
         event.preventDefault();
         setBearVisible(true);
       }
       // Delete/Backspace -> duck popup (hold to show; release hides)
-      if ((code === "Delete" || code === "Backspace" || key === "Delete" || key === "Backspace") && !event.repeat) {
+      if (
+        (code === "Delete" ||
+          code === "Backspace" ||
+          key === "Delete" ||
+          key === "Backspace") &&
+        !event.repeat
+      ) {
         event.preventDefault();
         setDuckVisible(true);
       }
@@ -281,12 +299,17 @@ function App() {
         setRightShiftPressed(false);
       }
       // Hide bear on space release
-      if (code === 'Space') {
+      if (code === "Space") {
         event.preventDefault();
         setBearVisible(false);
       }
       // Hide duck on Delete/Backspace release
-      if (code === "Delete" || code === "Backspace" || event.key === "Delete" || event.key === "Backspace") {
+      if (
+        code === "Delete" ||
+        code === "Backspace" ||
+        event.key === "Delete" ||
+        event.key === "Backspace"
+      ) {
         event.preventDefault();
         setDuckVisible(false);
       }
@@ -309,82 +332,98 @@ function App() {
     document.documentElement.style.setProperty("--bg-color", backgroundColor);
   }, [backgroundColor]);
 
-  // Handle window resize to update mobile detection
+  // Handle window resize to update mobile detection and orientation
   useEffect(() => {
     const handleResize = () => {
       const ua = navigator.userAgent.toLowerCase();
-      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isMobileDevice =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+          ua
+        );
+      const isTouchDevice =
+        "ontouchstart" in window || navigator.maxTouchPoints > 0;
       const isSmallScreen = window.innerWidth <= 768;
-      
+
       setIsMobile(isMobileDevice || (isTouchDevice && isSmallScreen));
+      setIsLandscape(window.innerWidth > window.innerHeight);
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
   }, []);
 
   // Handle mobile tap to select random letters
   const handleMobileTap = useCallback(() => {
     // If there's a current sequence, get next possible letters
     // Otherwise get top-level letters
-    const possibleLetters = mobileTypedSequence 
+    const possibleLetters = mobileTypedSequence
       ? getNextChars(mobileTypedSequence, prefixTreeRef.current)
       : Object.keys(prefixTreeRef.current);
-    
+
     if (possibleLetters.length === 0) return;
 
     // Randomly select up to 3 letters
     const shuffled = [...possibleLetters].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, 3);
     setAvailableLetters(selected);
-    
+
     // Change background color
     setBackgroundColor(getRandomBackgroundColor());
-    
+
     // Remove the starting text by setting a display char
-    setDisplayChar('');
+    setDisplayChar("");
   }, [mobileTypedSequence]);
 
   // Handle tapping a specific letter on mobile
-  const handleLetterTap = useCallback((letter: string, event: React.MouseEvent | React.TouchEvent) => {
-    event.stopPropagation();
-    
-    // Add letter to typed sequence
-    const newSequence = mobileTypedSequence + letter.toLowerCase();
-    setMobileTypedSequence(newSequence);
-    
-    // Clear available letters immediately
-    setAvailableLetters([]);
-    
-    // Change background color
-    setBackgroundColor(getRandomBackgroundColor());
-    
-    // Check if this completes a word
-    const possibleNextLetters = getNextChars(newSequence, prefixTreeRef.current);
-    const isCompleteWord = possibleNextLetters.length === 0 || 
-      [...words, ...names].some(w => w.toLowerCase() === newSequence);
-    
-    if (isCompleteWord) {
-      // Word is complete - show it in center and check for special behaviors
-      setDisplayChar(newSequence.toUpperCase());
-      ensureCharClass(newSequence.toUpperCase());
-      setFoundWord(newSequence);
-      // checkForWords will add to typedWords, so don't add here
-      checkForWords(newSequence);
-      
-      // Reset sequence after a delay
-      setTimeout(() => {
-        setMobileTypedSequence('');
-        setDisplayChar('');
-        setFoundWord('');
-      }, 2000);
-    } else {
-      // Show the current sequence (not just the letter)
-      setDisplayChar(newSequence.toUpperCase());
-      ensureCharClass(newSequence.toUpperCase());
-    }
-  }, [mobileTypedSequence, ensureCharClass, checkForWords]);
+  const handleLetterTap = useCallback(
+    (letter: string, event: React.MouseEvent | React.TouchEvent) => {
+      event.stopPropagation();
+
+      // Add letter to typed sequence
+      const newSequence = mobileTypedSequence + letter.toLowerCase();
+      setMobileTypedSequence(newSequence);
+
+      // Clear available letters immediately
+      setAvailableLetters([]);
+
+      // Change background color
+      setBackgroundColor(getRandomBackgroundColor());
+
+      // Check if this completes a word
+      const possibleNextLetters = getNextChars(
+        newSequence,
+        prefixTreeRef.current
+      );
+      const isCompleteWord =
+        possibleNextLetters.length === 0 ||
+        [...words, ...names].some((w) => w.toLowerCase() === newSequence);
+
+      if (isCompleteWord) {
+        // Word is complete - show it in center and check for special behaviors
+        setDisplayChar(newSequence.toUpperCase());
+        ensureCharClass(newSequence.toUpperCase());
+        setFoundWord(newSequence);
+        // checkForWords will add to typedWords, so don't add here
+        checkForWords(newSequence);
+
+        // Reset sequence after a delay
+        setTimeout(() => {
+          setMobileTypedSequence("");
+          setDisplayChar("");
+          setFoundWord("");
+        }, 2000);
+      } else {
+        // Show the current sequence (not just the letter)
+        setDisplayChar(newSequence.toUpperCase());
+        ensureCharClass(newSequence.toUpperCase());
+      }
+    },
+    [mobileTypedSequence, ensureCharClass, checkForWords]
+  );
 
   // Add touch event listener for mobile (only when no letters showing)
   useEffect(() => {
@@ -395,14 +434,14 @@ function App() {
       handleMobileTap();
     };
 
-    window.addEventListener('touchstart', handleTouch, { passive: false });
-    return () => window.removeEventListener('touchstart', handleTouch);
+    window.addEventListener("touchstart", handleTouch, { passive: false });
+    return () => window.removeEventListener("touchstart", handleTouch);
   }, [isMobile, handleMobileTap, availableLetters.length]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
-    console.log('Device detection:', isMobile ? 'MOBILE' : 'DESKTOP');
-    
+    console.log("Device detection:", isMobile ? "MOBILE" : "DESKTOP");
+
     return () => {
       if (wordTimeoutRef.current) {
         clearTimeout(wordTimeoutRef.current);
@@ -459,7 +498,9 @@ function App() {
           key={f.id}
           src={fishImg}
           alt="Fish"
-          className={`fish fish-id-${f.id} ${f.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"}`}
+          className={`fish fish-id-${f.id} ${
+            f.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"
+          }`}
           onAnimationEnd={() => removeFish(f.id)}
         />
       ))}
@@ -470,25 +511,27 @@ function App() {
           key={`horse-${h.id}`}
           src={horseImg}
           alt="Horse"
-          className={`horse horse-id-${h.id} ${h.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"}`}
+          className={`horse horse-id-${h.id} ${
+            h.dir === "ltr" ? "fish-swim" : "fish-swim-rtl"
+          }`}
           onAnimationEnd={() => removeHorse(h.id)}
         />
       ))}
 
       {isMobile && availableLetters.length > 0 ? (
-        <div className="mobile-word-building">
-          {/* Left side: current sequence */}
+        <div className={`mobile-word-building ${isLandscape ? 'landscape' : ''}`}>
+          {/* Current sequence */}
           {mobileTypedSequence && (
-            <div className="mobile-sequence">
+            <div className={`mobile-sequence ${isLandscape ? 'landscape' : ''}`}>
               {mobileTypedSequence.toUpperCase()}
             </div>
           )}
-          
-          {/* Right side: available next letters */}
-          <div className="mobile-letter-display">
+
+          {/* Available next letters */}
+          <div className={`mobile-letter-display ${isLandscape ? 'landscape' : ''}`}>
             {availableLetters.map((letter, idx) => (
-              <div 
-                key={`${letter}-${idx}`} 
+              <div
+                key={`${letter}-${idx}`}
                 className="mobile-letter"
                 onClick={(e) => handleLetterTap(letter, e)}
                 onTouchEnd={(e) => {
@@ -503,7 +546,10 @@ function App() {
         </div>
       ) : displayChar ? (
         <div className="display-container">
-          <div key={animationKey} className={`display-char ${displayCharClass} ${fontClasses[fontIndex]}`}>
+          <div
+            key={animationKey}
+            className={`display-char ${displayCharClass} ${fontClasses[fontIndex]}`}
+          >
             {displayChar}
           </div>
           {foundWord && (
@@ -516,12 +562,16 @@ function App() {
         <div className="instructions">
           <img height="200" title="smashy keys logo" src={smashyKeys} />
           {isMobile ? (
-            <h1>Tap anywhere!</h1>
+            <>
+              <h1>Smashy Keys</h1>
+              <h2>Mobile Edition</h2>
+              <p>Press any key!</p>
+            </>
           ) : (
             <>
-              <h1>Press any key!</h1>
-              <p>Letters, numbers, or arrow keys</p>
-              <p className="caps-lock-hint">Use Caps Lock for UPPERCASE letters!</p>
+              <h1>Smashy Keys</h1>
+              <p>Press any key!</p>
+              <p className="caps-lock-hint">Letters, numbers, or arrow keys</p>
             </>
           )}
         </div>

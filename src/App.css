@@ -130,6 +130,32 @@
   cursor: pointer;
 }
 
+/* Landscape mode adjustments */
+.mobile-word-building.landscape {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.mobile-sequence.landscape {
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  padding-right: 0;
+  padding-bottom: 1rem;
+  font-size: clamp(2rem, 10vw, 5rem);
+}
+
+.mobile-letter-display.landscape {
+  flex-direction: row;
+  height: auto;
+  width: 100%;
+  justify-content: center;
+  gap: 2rem;
+  padding: 0;
+}
+
 /* Found word display */
 .found-word {
   position: absolute;
