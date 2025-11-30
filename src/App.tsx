@@ -49,6 +49,8 @@ function App() {
   const [typedWords, setTypedWords] = useState<string[]>([]);
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
   const [mobileTypedSequence, setMobileTypedSequence] = useState<string>("");
+  const [desktopTypedSequence, setDesktopTypedSequence] = useState<string>("");
+  const [desktopNextLetters, setDesktopNextLetters] = useState<string[]>([]);
 
   // Use refs for values that don't need to trigger re-renders
   const wordTimeoutRef = useRef<number | null>(null);
@@ -90,14 +92,12 @@ function App() {
     (sequence: string) => {
       const lowerSequence = sequence.toLowerCase();
 
-      // Find the longest word that matches at the end of the sequence
+      // Check if the sequence itself is an exact match
       let longestMatch = "";
       for (const word of [...words, ...names]) {
-        if (
-          lowerSequence.endsWith(word.toLowerCase()) &&
-          word.length > longestMatch.length
-        ) {
+        if (lowerSequence === word.toLowerCase()) {
           longestMatch = word;
+          break;
         }
       }
 
@@ -270,22 +270,62 @@ function App() {
 
       // Update character and typed sequence
       if (newChar) {
-        setDisplayChar(newChar);
-        ensureCharClass(newChar);
-
         // Update typed sequence for word detection (only for letters)
         if (/^[a-zA-Z]$/.test(newChar)) {
           const newSequence = typedSequenceRef.current + newChar.toLowerCase();
           // Keep only the last 10 characters to prevent memory issues
           const trimmedSequence = newSequence.slice(-10);
-          typedSequenceRef.current = trimmedSequence;
-          checkForWords(trimmedSequence);
+          
+          // Check if this is a complete word
+          const isComplete = [...words, ...names].some(w => w.toLowerCase() === trimmedSequence);
+          
+          // Check if there are next letters for this sequence
+          const nextLetters = getNextChars(trimmedSequence, prefixTreeRef.current);
+          
+          // If no next letters and not a complete word, restart sequence with just the current letter
+          let finalSequence = trimmedSequence;
+          let finalNextLetters = nextLetters;
+          if (nextLetters.length === 0 && trimmedSequence.length > 1 && !isComplete) {
+            // No matches and not a complete word - restart with just the last letter
+            finalSequence = newChar.toLowerCase();
+            finalNextLetters = getNextChars(finalSequence, prefixTreeRef.current);
+          }
+          
+          typedSequenceRef.current = finalSequence;
+          
+          // Clear any previous found word when starting to type
+          if (foundWord) {
+            setFoundWord("");
+            setWordFadingOut(false);
+            if (wordTimeoutRef.current) {
+              clearTimeout(wordTimeoutRef.current);
+              wordTimeoutRef.current = null;
+            }
+          }
+          
+          checkForWords(finalSequence);
+
+          // Update desktop word building state
+          setDesktopTypedSequence(finalSequence);
+          setDesktopNextLetters(finalNextLetters);
+          
+          // Set display to show the sequence for word building
+          setDisplayChar(finalSequence.toUpperCase());
+          ensureCharClass(finalSequence.toUpperCase());
+        } else {
+          // Non-letter key pressed, show just that character
+          setDisplayChar(newChar);
+          ensureCharClass(newChar);
+          setDesktopTypedSequence("");
+          setDesktopNextLetters([]);
         }
       } else if (key !== "Shift") {
         setDisplayChar("");
         ensureCharClass("");
         // Reset typed sequence when non-letter key is pressed
         typedSequenceRef.current = "";
+        setDesktopTypedSequence("");
+        setDesktopNextLetters([]);
       }
     };
 
@@ -325,7 +365,7 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [checkForWords, ensureCharClass, spawnFish, fontClasses.length]);
+  }, [checkForWords, ensureCharClass, spawnFish, fontClasses.length, foundWord]);
 
   // Keep the CSS variable for background in sync (avoid inline root styles)
   useEffect(() => {
@@ -546,12 +586,28 @@ function App() {
         </div>
       ) : displayChar ? (
         <div className="display-container">
-          <div
-            key={animationKey}
-            className={`display-char ${displayCharClass} ${fontClasses[fontIndex]}`}
-          >
-            {displayChar}
-          </div>
+          {/* Desktop word building - show partial sequence and next letters */}
+          {!isMobile && desktopTypedSequence && desktopNextLetters.length > 0 && !foundWord ? (
+            <div className="desktop-word-building">
+              <div className="desktop-sequence">
+                {desktopTypedSequence.toUpperCase()}
+              </div>
+              <div className="desktop-next-letters">
+                {desktopNextLetters.map((letter, idx) => (
+                  <span key={`${letter}-${idx}`} className="desktop-next-letter">
+                    {letter.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div
+              key={animationKey}
+              className={`display-char ${displayCharClass} ${fontClasses[fontIndex]}`}
+            >
+              {displayChar}
+            </div>
+          )}
           {foundWord && (
             <div className={`found-word ${wordFadingOut ? "fading-out" : ""}`}>
               {foundWord}
