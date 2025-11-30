@@ -42,7 +42,14 @@ function App() {
   const [desktopTypedSequenceDisplay, setDesktopTypedSequenceDisplay] = useState<string>("");
   const [desktopNextLetters, setDesktopNextLetters] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [includeNames, setIncludeNames] = useState(false);
+  const [includeNames, setIncludeNames] = useState(() => {
+    const saved = localStorage.getItem('includeNames');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [showNextLetters, setShowNextLetters] = useState(() => {
+    const saved = localStorage.getItem('showNextLetters');
+    return saved ? JSON.parse(saved) : true;
+  });
 
   // Use refs for values that don't need to trigger re-renders
   const previousCharRef = useRef<string>("");
@@ -290,6 +297,15 @@ function App() {
     document.documentElement.style.setProperty("--bg-color", backgroundColor);
   }, [backgroundColor]);
 
+  // Save settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('includeNames', JSON.stringify(includeNames));
+  }, [includeNames]);
+
+  useEffect(() => {
+    localStorage.setItem('showNextLetters', JSON.stringify(showNextLetters));
+  }, [showNextLetters]);
+
   // Handle mobile tap to select random letters
   const handleMobileTap = useCallback(() => {
     // If there's a current sequence, get next possible letters
@@ -453,6 +469,21 @@ function App() {
                   <span className="toggle-slider"></span>
                 </label>
               </div>
+              <div className="setting-item">
+                <label className="setting-label">
+                  <span className="setting-title">Show Next Letters</span>
+                  <span className="setting-description">Display available next letters during word building</span>
+                </label>
+                <label className="toggle-switch">
+                  <input 
+                    type="checkbox" 
+                    checked={showNextLetters}
+                    onChange={(e) => setShowNextLetters(e.target.checked)}
+                    aria-label="Toggle show next letters"
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -526,8 +557,9 @@ function App() {
           )}
 
           {/* Available next letters */}
-          <div className={`mobile-letter-display ${isLandscape ? 'landscape' : ''}`}>
-            {availableLetters.map((letter, idx) => (
+          {showNextLetters && (
+            <div className={`mobile-letter-display ${isLandscape ? 'landscape' : ''}`}>
+              {availableLetters.map((letter, idx) => (
               <div
                 key={`${letter}-${idx}`}
                 className="mobile-letter"
@@ -540,7 +572,8 @@ function App() {
                 {letter.toUpperCase()}
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </div>
       ) : displayChar ? (
         <div className="display-container">
@@ -550,8 +583,9 @@ function App() {
               <div className="desktop-sequence">
                 {desktopTypedSequenceDisplay}
               </div>
-              <div className="desktop-next-letters">
-                {desktopNextLetters.map((letter, idx) => (
+              {showNextLetters && (
+                <div className="desktop-next-letters">
+                  {desktopNextLetters.map((letter, idx) => (
                   <span 
                     key={`${letter}-${idx}`} 
                     className="desktop-next-letter"
@@ -560,7 +594,8 @@ function App() {
                     {letter}
                   </span>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             <div
