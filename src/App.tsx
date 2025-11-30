@@ -44,8 +44,8 @@ function App() {
   const [wordFadingOut, setWordFadingOut] = useState(false);
   const [bearVisible, setBearVisible] = useState(false);
   const [duckVisible, setDuckVisible] = useState(false);
-  const [fontIndex, setFontIndex] = useState(0);
-  const fontClasses = ["font-a", "font-b", "font-c", "font-d"];
+  const [fontIndex, setFontIndex] = useState(1);
+  const fontClasses = ["font-a", "font-b", "font-c", "font-d", "font-e", "font-f", "font-g", "font-h"];
   const [typedWords, setTypedWords] = useState<string[]>([]);
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
   const [mobileTypedSequence, setMobileTypedSequence] = useState<string>("");
@@ -256,22 +256,20 @@ function App() {
         newChar = "RIGHT";
       }
 
-      // Check if same character is being pressed again and trigger bounce animation
-      if (newChar && newChar === previousCharRef.current) {
-        setAnimationKey((prev) => prev + 1);
-        // rotate font on repeated presses
-        setFontIndex((prev) => (prev + 1) % fontClasses.length);
-      } else if (newChar) {
-        // reset to default font for new characters
-        setFontIndex(0);
-      }
-      previousCharRef.current =
-        newChar || (key === "Shift" ? previousCharRef.current : "");
-
       // Update character and typed sequence
       if (newChar) {
         // Update typed sequence for word detection (only for letters)
         if (/^[a-zA-Z]$/.test(newChar)) {
+          // Check if same letter is being pressed again (for font rotation)
+          if (newChar === previousCharRef.current) {
+            setAnimationKey((prev) => prev + 1);
+            // rotate font on repeated presses
+            setFontIndex((prev) => (prev + 1) % fontClasses.length);
+          } else {
+            // reset to default font for new characters
+            setFontIndex(1); // Start at index 1 (Fredoka One)
+          }
+          previousCharRef.current = newChar;
           const newSequence = typedSequenceRef.current + newChar.toLowerCase();
           // Keep only the last 10 characters to prevent memory issues
           const trimmedSequence = newSequence.slice(-10);
@@ -314,6 +312,17 @@ function App() {
           ensureCharClass(finalSequence.toUpperCase());
         } else {
           // Non-letter key pressed, show just that character
+          // Check if same key is being pressed again (for font rotation)
+          if (newChar === previousCharRef.current) {
+            setAnimationKey((prev) => prev + 1);
+            // rotate font on repeated presses
+            setFontIndex((prev) => (prev + 1) % fontClasses.length);
+          } else {
+            // reset to default font for new characters
+            setFontIndex(1); // Start at index 1 (Fredoka One)
+          }
+          previousCharRef.current = newChar;
+          
           setDisplayChar(newChar);
           ensureCharClass(newChar);
           setDesktopTypedSequence("");
@@ -326,6 +335,7 @@ function App() {
         typedSequenceRef.current = "";
         setDesktopTypedSequence("");
         setDesktopNextLetters([]);
+        previousCharRef.current = "";
       }
     };
 
