@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import "./App.css";
 import squirrelImg from "./assets/animals/squirrel.webp";
 import bearImg from "./assets/animals/bear.webp";
@@ -39,11 +39,15 @@ function App() {
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
   const [mobileTypedSequence, setMobileTypedSequence] = useState<string>("");
   const [desktopTypedSequence, setDesktopTypedSequence] = useState<string>("");
+  const [desktopTypedSequenceDisplay, setDesktopTypedSequenceDisplay] = useState<string>("");
   const [desktopNextLetters, setDesktopNextLetters] = useState<string[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [includeNames, setIncludeNames] = useState(false);
 
   // Use refs for values that don't need to trigger re-renders
   const previousCharRef = useRef<string>("");
   const typedSequenceRef = useRef<string>("");
+  const typedSequenceDisplayRef = useRef<string>("");
 
   const {
     list: fishList,
@@ -66,14 +70,23 @@ function App() {
   );
   const { className: displayCharClass, ensureCharClass } = useCharClass();
 
-  // Build prefix tree for mobile word detection
-  const prefixTreeRef = useRef(buildPrefixTree([...words, ...names]));
+  // Compute word list based on settings
+  const wordList = useMemo(() => 
+    includeNames ? [...words, ...names] : words,
+    [includeNames]
+  );
+
+  // Build prefix tree for mobile word detection - rebuild when includeNames changes
+  const prefixTreeRef = useRef(buildPrefixTree(wordList));
+  
+  useEffect(() => {
+    prefixTreeRef.current = buildPrefixTree(wordList);
+  }, [wordList]);
 
   // Word detection and special behaviors
   const { checkForWords, cleanup: cleanupWordDetection } = useWordDetection({
     onWordFound: (word: string) => {
       setFoundWord(word);
-      setTypedWords((prev) => [word, ...prev]);
       setWordFadingOut(false);
     },
     spawnFish,
@@ -92,6 +105,32 @@ function App() {
       
       const key = event.key;
       const code = event.code;
+
+      // Handle caps lock toggle - update display case without clearing sequence
+      if (code === "CapsLock") {
+        const newCapsLockState = event.getModifierState("CapsLock");
+        
+        // Toggle the case of the current display sequence
+        if (desktopTypedSequenceDisplay) {
+          const toggledDisplay = newCapsLockState 
+            ? desktopTypedSequenceDisplay.toUpperCase()
+            : desktopTypedSequenceDisplay.toLowerCase();
+          setDesktopTypedSequenceDisplay(toggledDisplay);
+          typedSequenceDisplayRef.current = toggledDisplay;
+          setDisplayChar(toggledDisplay);
+          ensureCharClass(toggledDisplay);
+        }
+        
+        // Toggle the case of next letters display
+        if (desktopNextLetters.length > 0) {
+          const toggledNextLetters = desktopNextLetters.map(letter => 
+            newCapsLockState ? letter.toUpperCase() : letter.toLowerCase()
+          );
+          setDesktopNextLetters(toggledNextLetters);
+        }
+        
+        return; // Don't process further for caps lock
+      }
 
       // Handle shift keys for squirrel using event.code for better detection
       if (code === "ShiftLeft") {
@@ -144,25 +183,30 @@ function App() {
           }
           previousCharRef.current = newChar;
           const newSequence = typedSequenceRef.current + newChar.toLowerCase();
+          const newDisplaySequence = typedSequenceDisplayRef.current + newChar;
           // Keep only the last 10 characters to prevent memory issues
           const trimmedSequence = newSequence.slice(-10);
+          const trimmedDisplaySequence = newDisplaySequence.slice(-10);
           
           // Check if this is a complete word
-          const isComplete = [...words, ...names].some(w => w.toLowerCase() === trimmedSequence);
+          const isComplete = wordList.some(w => w.toLowerCase() === trimmedSequence);
           
           // Check if there are next letters for this sequence
           const nextLetters = getNextChars(trimmedSequence, prefixTreeRef.current);
           
           // If no next letters and not a complete word, restart sequence with just the current letter
           let finalSequence = trimmedSequence;
+          let finalDisplaySequence = trimmedDisplaySequence;
           let finalNextLetters = nextLetters;
           if (nextLetters.length === 0 && trimmedSequence.length > 1 && !isComplete) {
             // No matches and not a complete word - restart with just the last letter
             finalSequence = newChar.toLowerCase();
+            finalDisplaySequence = newChar;
             finalNextLetters = getNextChars(finalSequence, prefixTreeRef.current);
           }
           
           typedSequenceRef.current = finalSequence;
+          typedSequenceDisplayRef.current = finalDisplaySequence;
           
           // Clear any previous found word when starting to type
           if (foundWord) {
@@ -174,11 +218,12 @@ function App() {
 
           // Update desktop word building state
           setDesktopTypedSequence(finalSequence);
+          setDesktopTypedSequenceDisplay(finalDisplaySequence);
           setDesktopNextLetters(finalNextLetters);
           
           // Set display to show the sequence for word building
-          setDisplayChar(finalSequence.toUpperCase());
-          ensureCharClass(finalSequence.toUpperCase());
+          setDisplayChar(finalDisplaySequence);
+          ensureCharClass(finalDisplaySequence);
         } else {
           // Non-letter key pressed, show just that character
           // Check if same key is being pressed again (for font rotation)
@@ -194,18 +239,12 @@ function App() {
           
           setDisplayChar(newChar);
           ensureCharClass(newChar);
-          setDesktopTypedSequence("");
-          setDesktopNextLetters([]);
+          // Don't clear desktop word building for non-letter characters
+          // Keep the partial word and next letters visible
         }
-      } else if (key !== "Shift") {
-        setDisplayChar("");
-        ensureCharClass("");
-        // Reset typed sequence when non-letter key is pressed
-        typedSequenceRef.current = "";
-        setDesktopTypedSequence("");
-        setDesktopNextLetters([]);
-        previousCharRef.current = "";
       }
+      // Don't clear word building state for non-displayable keys (Shift, etc.)
+      // This preserves partial words and next letters when special keys are pressed
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -244,7 +283,7 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [checkForWords, ensureCharClass, spawnFish, fontClasses.length, foundWord]);
+  }, [checkForWords, ensureCharClass, spawnFish, fontClasses.length, foundWord, desktopTypedSequenceDisplay, desktopNextLetters, wordList]);
 
   // Keep the CSS variable for background in sync (avoid inline root styles)
   useEffect(() => {
@@ -275,15 +314,28 @@ function App() {
 
   // Handle tapping a specific letter on mobile
   const handleLetterTap = useCallback(
-    (letter: string, event: React.MouseEvent | React.TouchEvent) => {
-      event.stopPropagation();
+    (letter: string, event?: React.MouseEvent | React.TouchEvent) => {
+      event?.stopPropagation();
 
-      // Add letter to typed sequence
-      const newSequence = mobileTypedSequence + letter.toLowerCase();
-      setMobileTypedSequence(newSequence);
-
-      // Clear available letters immediately
-      setAvailableLetters([]);
+      // Determine current sequence based on device type
+      const currentSequence = isMobile ? mobileTypedSequence : desktopTypedSequence;
+      const currentDisplaySequence = isMobile ? mobileTypedSequence : (typedSequenceDisplayRef.current || "");
+      
+      // Add letter to typed sequence (lowercase for matching, uppercase for display)
+      const newSequence = currentSequence + letter.toLowerCase();
+      const newDisplaySequence = currentDisplaySequence + letter.toUpperCase();
+      
+      if (isMobile) {
+        setMobileTypedSequence(newSequence);
+        // Clear available letters immediately
+        setAvailableLetters([]);
+      } else {
+        // Desktop mode - update desktop sequence and refs
+        typedSequenceRef.current = newSequence;
+        typedSequenceDisplayRef.current = newDisplaySequence;
+        setDesktopTypedSequence(newSequence);
+        setDesktopTypedSequenceDisplay(newDisplaySequence);
+      }
 
       // Change background color
       setBackgroundColor(getRandomBackgroundColor());
@@ -295,29 +347,44 @@ function App() {
       );
       const isCompleteWord =
         possibleNextLetters.length === 0 ||
-        [...words, ...names].some((w) => w.toLowerCase() === newSequence);
+        wordList.some((w) => w.toLowerCase() === newSequence);
 
       if (isCompleteWord) {
         // Word is complete - show it in center and check for special behaviors
-        setDisplayChar(newSequence.toUpperCase());
-        ensureCharClass(newSequence.toUpperCase());
+        const displaySeq = isMobile ? newSequence.toUpperCase() : newDisplaySequence;
+        setDisplayChar(displaySeq);
+        ensureCharClass(displaySeq);
         setFoundWord(newSequence);
         // checkForWords will add to typedWords, so don't add here
         checkForWords(newSequence);
 
         // Reset sequence after a delay
         setTimeout(() => {
-          setMobileTypedSequence("");
+          if (isMobile) {
+            setMobileTypedSequence("");
+          } else {
+            setDesktopTypedSequence("");
+            setDesktopTypedSequenceDisplay("");
+            setDesktopNextLetters([]);
+            typedSequenceRef.current = "";
+            typedSequenceDisplayRef.current = "";
+          }
           setDisplayChar("");
           setFoundWord("");
         }, 2000);
       } else {
         // Show the current sequence (not just the letter)
-        setDisplayChar(newSequence.toUpperCase());
-        ensureCharClass(newSequence.toUpperCase());
+        const displaySeq = isMobile ? newSequence.toUpperCase() : newDisplaySequence;
+        setDisplayChar(displaySeq);
+        ensureCharClass(displaySeq);
+        
+        // Update next letters for desktop
+        if (!isMobile) {
+          setDesktopNextLetters(possibleNextLetters);
+        }
       }
     },
-    [mobileTypedSequence, ensureCharClass, checkForWords]
+    [isMobile, mobileTypedSequence, desktopTypedSequence, ensureCharClass, checkForWords, wordList]
   );
 
   // Add touch event listener for mobile (only when no letters showing)
@@ -344,6 +411,53 @@ function App() {
 
   return (
     <div className="toddler-app">
+      {/* Settings button */}
+      <button 
+        className="settings-button"
+        onClick={() => setSettingsOpen(true)}
+        aria-label="Open settings"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="settings-icon">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+        </svg>
+      </button>
+
+      {/* Settings modal */}
+      {settingsOpen && (
+        <div className="modal-overlay" onClick={() => setSettingsOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Settings</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setSettingsOpen(false)}
+                aria-label="Close settings"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="setting-item">
+                <label className="setting-label">
+                  <span className="setting-title">Include Names</span>
+                  <span className="setting-description">Allow names to be matched as words</span>
+                </label>
+                <label className="toggle-switch">
+                  <input 
+                    type="checkbox" 
+                    checked={includeNames}
+                    onChange={(e) => setIncludeNames(e.target.checked)}
+                    aria-label="Toggle include names"
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left squirrel */}
       <img
         src={squirrelImg}
@@ -434,12 +548,16 @@ function App() {
           {!isMobile && desktopTypedSequence && desktopNextLetters.length > 0 && !foundWord ? (
             <div className="desktop-word-building">
               <div className="desktop-sequence">
-                {desktopTypedSequence.toUpperCase()}
+                {desktopTypedSequenceDisplay}
               </div>
               <div className="desktop-next-letters">
                 {desktopNextLetters.map((letter, idx) => (
-                  <span key={`${letter}-${idx}`} className="desktop-next-letter">
-                    {letter.toUpperCase()}
+                  <span 
+                    key={`${letter}-${idx}`} 
+                    className="desktop-next-letter"
+                    onClick={() => handleLetterTap(letter.toLowerCase())}
+                  >
+                    {letter}
                   </span>
                 ))}
               </div>

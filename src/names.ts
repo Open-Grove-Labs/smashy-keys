@@ -2055,7 +2055,6 @@ export const names = [
   "Younis",
   "Yousef",
   "Youssef",
-  "Yu",
   "Yuna",
   "Yusuf",
   "Zabdiel",
