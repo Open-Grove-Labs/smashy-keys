@@ -15,6 +15,7 @@ import { useCharClass } from "./hooks/useCharClass";
 import { randomFishTop, randomFishDuration } from "./utils/fish";
 import { getRandomBackgroundColor } from "./utils/colors";
 import { buildPrefixTree } from "./utils/prefixTree";
+import { getNextChars } from "./utils/prefixTree";
 
 function App() {
   // Detect if running on mobile device
@@ -40,6 +41,7 @@ function App() {
   const fontClasses = ["font-a", "font-b", "font-c", "font-d"];
   const [typedWords, setTypedWords] = useState<string[]>([]);
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
+  const [mobileTypedSequence, setMobileTypedSequence] = useState<string>("");
 
   // Use refs for values that don't need to trigger re-renders
   const wordTimeoutRef = useRef<number | null>(null);
@@ -324,11 +326,16 @@ function App() {
 
   // Handle mobile tap to select random letters
   const handleMobileTap = useCallback(() => {
-    const topLevelKeys = Object.keys(prefixTreeRef.current);
-    if (topLevelKeys.length === 0) return;
+    // If there's a current sequence, get next possible letters
+    // Otherwise get top-level letters
+    const possibleLetters = mobileTypedSequence 
+      ? getNextChars(mobileTypedSequence, prefixTreeRef.current)
+      : Object.keys(prefixTreeRef.current);
+    
+    if (possibleLetters.length === 0) return;
 
-    // Randomly select 3 letters
-    const shuffled = [...topLevelKeys].sort(() => Math.random() - 0.5);
+    // Randomly select up to 3 letters
+    const shuffled = [...possibleLetters].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, 3);
     setAvailableLetters(selected);
     
@@ -337,11 +344,51 @@ function App() {
     
     // Remove the starting text by setting a display char
     setDisplayChar('');
-  }, []);
+  }, [mobileTypedSequence]);
 
-  // Add touch event listener for mobile
+  // Handle tapping a specific letter on mobile
+  const handleLetterTap = useCallback((letter: string, event: React.MouseEvent | React.TouchEvent) => {
+    event.stopPropagation();
+    
+    // Add letter to typed sequence
+    const newSequence = mobileTypedSequence + letter.toLowerCase();
+    setMobileTypedSequence(newSequence);
+    
+    // Clear available letters immediately
+    setAvailableLetters([]);
+    
+    // Change background color
+    setBackgroundColor(getRandomBackgroundColor());
+    
+    // Check if this completes a word
+    const possibleNextLetters = getNextChars(newSequence, prefixTreeRef.current);
+    const isCompleteWord = possibleNextLetters.length === 0 || 
+      [...words, ...names].some(w => w.toLowerCase() === newSequence);
+    
+    if (isCompleteWord) {
+      // Word is complete - show it in center and check for special behaviors
+      setDisplayChar(newSequence.toUpperCase());
+      ensureCharClass(newSequence.toUpperCase());
+      setFoundWord(newSequence);
+      // checkForWords will add to typedWords, so don't add here
+      checkForWords(newSequence);
+      
+      // Reset sequence after a delay
+      setTimeout(() => {
+        setMobileTypedSequence('');
+        setDisplayChar('');
+        setFoundWord('');
+      }, 2000);
+    } else {
+      // Show the current sequence (not just the letter)
+      setDisplayChar(newSequence.toUpperCase());
+      ensureCharClass(newSequence.toUpperCase());
+    }
+  }, [mobileTypedSequence, ensureCharClass, checkForWords]);
+
+  // Add touch event listener for mobile (only when no letters showing)
   useEffect(() => {
-    if (!isMobile) return;
+    if (!isMobile || availableLetters.length > 0) return;
 
     const handleTouch = (event: TouchEvent) => {
       event.preventDefault();
@@ -350,7 +397,7 @@ function App() {
 
     window.addEventListener('touchstart', handleTouch, { passive: false });
     return () => window.removeEventListener('touchstart', handleTouch);
-  }, [isMobile, handleMobileTap]);
+  }, [isMobile, handleMobileTap, availableLetters.length]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -428,7 +475,33 @@ function App() {
         />
       ))}
 
-      {displayChar ? (
+      {isMobile && availableLetters.length > 0 ? (
+        <div className="mobile-word-building">
+          {/* Left side: current sequence */}
+          {mobileTypedSequence && (
+            <div className="mobile-sequence">
+              {mobileTypedSequence.toUpperCase()}
+            </div>
+          )}
+          
+          {/* Right side: available next letters */}
+          <div className="mobile-letter-display">
+            {availableLetters.map((letter, idx) => (
+              <div 
+                key={`${letter}-${idx}`} 
+                className="mobile-letter"
+                onClick={(e) => handleLetterTap(letter, e)}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  handleLetterTap(letter, e);
+                }}
+              >
+                {letter.toUpperCase()}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : displayChar ? (
         <div className="display-container">
           <div key={animationKey} className={`display-char ${displayCharClass} ${fontClasses[fontIndex]}`}>
             {displayChar}
@@ -438,14 +511,6 @@ function App() {
               {foundWord}
             </div>
           )}
-        </div>
-      ) : isMobile && availableLetters.length > 0 ? (
-        <div className="mobile-letter-display">
-          {availableLetters.map((letter, idx) => (
-            <div key={`${letter}-${idx}`} className="mobile-letter">
-              {letter.toUpperCase()}
-            </div>
-          ))}
         </div>
       ) : (
         <div className="instructions">
