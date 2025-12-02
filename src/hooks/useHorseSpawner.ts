@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useDynamicSheet } from "./useDynamicSheet";
-import { randomFishTop, randomFishDuration } from "../utils/fish";
+import { randomFishDuration } from "../utils/fish";
 
 export type HorseEntry = { id: number; top: string; duration: number; dir: "ltr" | "rtl" };
 
