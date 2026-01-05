@@ -89,7 +89,7 @@ function App() {
       const { displaySequence } = wordState.handleLetterTap(letter, isMobile);
       setBackgroundColor(getRandomBackgroundColor());
       setDisplayChar(displaySequence);
-      ensureCharClass(displaySequence);
+      ensureCharClass(displaySequence, wordState.currentWordColor || undefined);
     },
     [ensureCharClass, isMobile, setBackgroundColor, setDisplayChar, wordState]
   );

@@ -36,7 +36,7 @@ export function DesktopWordBuilder({
   return (
     <div className="desktop-word-building">
       <WordDisplay
-        displayChar={displayChar}
+        displayChar={desktopTypedSequenceDisplay}
         displayCharClass={displayCharClass}
         fontClass={fontClass}
         animationKey={animationKey}

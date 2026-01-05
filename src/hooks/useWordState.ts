@@ -4,6 +4,7 @@ import { names } from "../names";
 import { buildPrefixTree, getNextChars } from "../utils/prefixTree";
 import type { PrefixNode } from "../utils/prefixTree";
 import { useWordDetection } from "./useWordDetection";
+import { getRandomDarkColor } from "../utils/colors";
 
 export type WordStateDeps = {
   includeNames: boolean;
@@ -35,6 +36,8 @@ export function useWordState({
   const [typedWords, setTypedWords] = useState<string[]>([]);
 
   const [capsLockOn, setCapsLockOn] = useState(false);
+  const [currentWordColor, setCurrentWordColor] = useState<string | null>(null);
+  const [currentFontIndex, setCurrentFontIndex] = useState(1);
   const [desktopTypedSequence, setDesktopTypedSequence] = useState("");
   const [desktopTypedSequenceDisplay, setDesktopTypedSequenceDisplay] =
     useState("");
@@ -86,6 +89,11 @@ export function useWordState({
       const trimmedSequence = newSequence.slice(-10);
       const trimmedDisplaySequence = newDisplaySequence.slice(-10);
 
+      // Set color on first letter
+      if (typedSequenceRef.current === "") {
+        setCurrentWordColor(getRandomDarkColor());
+      }
+
       const isComplete = wordList.some(
         (w) => w.toLowerCase() === trimmedSequence
       );
@@ -95,6 +103,8 @@ export function useWordState({
       let finalDisplaySequence = trimmedDisplaySequence;
 
       if (nextLetters.length === 0 && trimmedSequence.length > 1 && !isComplete) {
+        // Restarting with a new letter - pick a new color
+        setCurrentWordColor(getRandomDarkColor());
         finalSequence = newChar.toLowerCase();
         finalDisplaySequence = normalizedChar;
         nextLetters = getNextChars(finalSequence, prefixTreeRef.current);
@@ -126,6 +136,7 @@ export function useWordState({
     setDesktopTypedSequence("");
     setDesktopTypedSequenceDisplay("");
     setDesktopNextLetters([]);
+    setCurrentWordColor(null);
   }, []);
 
   const handleMobileTap = useCallback(() => {
@@ -149,6 +160,11 @@ export function useWordState({
       const currentDisplaySequence = isMobile
         ? mobileTypedSequence
         : typedSequenceDisplayRef.current;
+
+      // Set color on first letter
+      if (currentSequence === "") {
+        setCurrentWordColor(getRandomDarkColor());
+      }
 
       const newSequence = currentSequence + letter.toLowerCase();
       const displayLetter = capsLockOn ? letter.toUpperCase() : letter.toLowerCase();
@@ -223,6 +239,9 @@ export function useWordState({
     mobileTypedSequence,
     availableLetters,
     capsLockOn,
+    currentWordColor,
+    currentFontIndex,
+    setCurrentFontIndex,
     handleDesktopLetterInput,
     handleMobileTap,
     handleLetterTap,

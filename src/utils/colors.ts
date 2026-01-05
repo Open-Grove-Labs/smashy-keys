@@ -85,3 +85,23 @@ export const getRandomBackgroundColor = (): string => {
     Math.floor(Math.random() * backgroundColors.length)
   ];
 };
+
+export const getRandomDarkColor = (): string => {
+  const darkColors = [
+    "#ff6b6b", // red
+    "#4ecdc4", // teal
+    "#45b7d1", // blue
+    "#5f27cd", // purple
+    "#f0932b", // orange
+    "#eb4d4b", // dark red
+    "#6c5ce7", // violet
+    "#e17055", // coral
+    "#0984e3", // bright blue
+    "#00b894", // green
+    "#e84393", // pink
+    "#d63031", // deep red
+    "#0984e3", // ocean blue
+    "#6c5ce7", // indigo
+  ];
+  return darkColors[Math.floor(Math.random() * darkColors.length)];
+};

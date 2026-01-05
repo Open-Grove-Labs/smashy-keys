@@ -103,22 +103,44 @@ export function useKeyboardControls({
       const newChar = getDisplayCharFromKey(event);
       if (!newChar) return;
 
-      if (newChar === previousCharRef.current) {
-        setAnimationKey((prev) => prev + 1);
-        setFontIndex((prev) => (prev + 1) % FONT_CLASSES.length);
-      } else {
-        setFontIndex(1);
-      }
-      previousCharRef.current = newChar;
-
       if (/^[a-zA-Z]$/.test(newChar) && !isMobile) {
+        // Check if we're genuinely building a multi-letter word
+        const currentSequence = desktopTypedSequenceDisplay.toLowerCase();
+        const isRepeatedSingleLetter = currentSequence === "" || currentSequence === newChar.toLowerCase();
+        
+        if (isRepeatedSingleLetter && newChar.toLowerCase() === previousCharRef.current.toLowerCase()) {
+          // Same letter pressed repeatedly (not building a word) - cycle font
+          setAnimationKey((prev) => prev + 1);
+          const newFontIndex = (fontIndex + 1) % FONT_CLASSES.length;
+          setFontIndex(newFontIndex);
+          wordState.setCurrentFontIndex(newFontIndex);
+        } else if (currentSequence === "" || currentSequence === newChar.toLowerCase()) {
+          // Different key or first press - choose random font
+          setAnimationKey((prev) => prev + 1);
+          const randomFontIndex = Math.floor(Math.random() * FONT_CLASSES.length);
+          setFontIndex(randomFontIndex);
+          wordState.setCurrentFontIndex(randomFontIndex);
+        }
+        // else: building a multi-letter word, preserve current font
+        
+        previousCharRef.current = newChar.toLowerCase();
+        
         // Sync caps lock state before processing the letter
         const capsLockState = event.getModifierState("CapsLock");
         forceDisplayCase(capsLockState);
         const { displaySequence } = handleDesktopLetterInput(newChar);
         setDisplayChar(displaySequence);
-        ensureCharClass(displaySequence);
+        ensureCharClass(displaySequence, wordState.currentWordColor || undefined);
       } else {
+        // Non-letter key - use original font cycling logic
+        if (newChar === previousCharRef.current) {
+          setAnimationKey((prev) => prev + 1);
+          setFontIndex((prev) => (prev + 1) % FONT_CLASSES.length);
+        } else {
+          setFontIndex(1);
+        }
+        previousCharRef.current = newChar;
+        
         setDisplayChar(newChar);
         ensureCharClass(newChar);
       }
