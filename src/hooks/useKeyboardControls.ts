@@ -112,6 +112,9 @@ export function useKeyboardControls({
       previousCharRef.current = newChar;
 
       if (/^[a-zA-Z]$/.test(newChar) && !isMobile) {
+        // Sync caps lock state before processing the letter
+        const capsLockState = event.getModifierState("CapsLock");
+        forceDisplayCase(capsLockState);
         const { displaySequence } = handleDesktopLetterInput(newChar);
         setDisplayChar(displaySequence);
         ensureCharClass(displaySequence);

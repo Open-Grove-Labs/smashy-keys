@@ -49,7 +49,7 @@ export function DesktopWordBuilder({
             <span
               key={`${letter}-${idx}`}
               className="desktop-next-letter"
-              onClick={() => onLetterTap(letter.toLowerCase())}
+              onClick={() => onLetterTap(letter)}
             >
               {letter}
             </span>

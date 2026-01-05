@@ -34,6 +34,7 @@ export function useWordState({
   const [wordFadingOut, setWordFadingOut] = useState(false);
   const [typedWords, setTypedWords] = useState<string[]>([]);
 
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const [desktopTypedSequence, setDesktopTypedSequence] = useState("");
   const [desktopTypedSequenceDisplay, setDesktopTypedSequenceDisplay] =
     useState("");
@@ -64,6 +65,11 @@ export function useWordState({
   }, []);
 
   const forceDisplayCase = useCallback((isUpper: boolean) => {
+    setCapsLockOn(isUpper);
+    const normalized = isUpper 
+      ? typedSequenceDisplayRef.current.toUpperCase()
+      : typedSequenceDisplayRef.current.toLowerCase();
+    typedSequenceDisplayRef.current = normalized;
     setDesktopTypedSequenceDisplay((prev) =>
       isUpper ? prev.toUpperCase() : prev.toLowerCase()
     );
@@ -75,7 +81,8 @@ export function useWordState({
   const handleDesktopLetterInput = useCallback(
     (newChar: string) => {
       const newSequence = typedSequenceRef.current + newChar.toLowerCase();
-      const newDisplaySequence = typedSequenceDisplayRef.current + newChar;
+      const normalizedChar = capsLockOn ? newChar.toUpperCase() : newChar.toLowerCase();
+      const newDisplaySequence = typedSequenceDisplayRef.current + normalizedChar;
       const trimmedSequence = newSequence.slice(-10);
       const trimmedDisplaySequence = newDisplaySequence.slice(-10);
 
@@ -89,7 +96,7 @@ export function useWordState({
 
       if (nextLetters.length === 0 && trimmedSequence.length > 1 && !isComplete) {
         finalSequence = newChar.toLowerCase();
-        finalDisplaySequence = newChar;
+        finalDisplaySequence = normalizedChar;
         nextLetters = getNextChars(finalSequence, prefixTreeRef.current);
       }
 
@@ -104,11 +111,13 @@ export function useWordState({
 
       setDesktopTypedSequence(finalSequence);
       setDesktopTypedSequenceDisplay(finalDisplaySequence);
-      setDesktopNextLetters(nextLetters);
+      setDesktopNextLetters(
+        nextLetters.map((l) => (capsLockOn ? l.toUpperCase() : l.toLowerCase()))
+      );
 
       return { displaySequence: finalDisplaySequence, nextLetters } as const;
     },
-    [checkForWords, clearFoundWord, foundWord, wordList]
+    [capsLockOn, checkForWords, clearFoundWord, foundWord, wordList]
   );
 
   const resetDesktopSequences = useCallback(() => {
@@ -142,7 +151,8 @@ export function useWordState({
         : typedSequenceDisplayRef.current;
 
       const newSequence = currentSequence + letter.toLowerCase();
-      const newDisplaySequence = currentDisplaySequence + letter.toUpperCase();
+      const displayLetter = capsLockOn ? letter.toUpperCase() : letter.toLowerCase();
+      const newDisplaySequence = currentDisplaySequence + displayLetter;
 
       if (isMobile) {
         setMobileTypedSequence(newSequence);
@@ -183,7 +193,9 @@ export function useWordState({
       }
 
       if (!isMobile) {
-        setDesktopNextLetters(possibleNextLetters);
+        setDesktopNextLetters(
+          possibleNextLetters.map((l) => (capsLockOn ? l.toUpperCase() : l.toLowerCase()))
+        );
       }
 
       const displaySeq = isMobile
@@ -210,6 +222,7 @@ export function useWordState({
     desktopNextLetters,
     mobileTypedSequence,
     availableLetters,
+    capsLockOn,
     handleDesktopLetterInput,
     handleMobileTap,
     handleLetterTap,
