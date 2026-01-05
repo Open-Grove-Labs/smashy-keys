@@ -467,10 +467,15 @@ h1 {
 }
 
 /* Settings button */
-.settings-button {
+.settings-container {
   position: fixed;
   top: 20px;
   left: 20px;
+  display: flex;
+  flex-flow: row nowrap;
+}
+
+.settings-button {
   width: 48px;
   height: 48px;
   background: none;
@@ -501,6 +506,25 @@ h1 {
 
 .settings-button:hover .settings-icon {
   color: rgba(255, 255, 255, 1);
+}
+
+.mode-toggle-button {
+  all: unset;
+  background-color: transparent;
+  font-weight: bold;
+  font-family: 'Arial Black', Arial, sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.mode-toggle-button:hover {
+  transform: scale(1.1);
 }
 
 /* Modal overlay */
