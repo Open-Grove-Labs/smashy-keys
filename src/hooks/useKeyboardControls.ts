@@ -130,7 +130,7 @@ export function useKeyboardControls({
         forceDisplayCase(capsLockState);
         const { displaySequence } = handleDesktopLetterInput(newChar);
         setDisplayChar(displaySequence);
-        ensureCharClass(displaySequence, wordState.currentWordColor || undefined);
+        ensureCharClass(displaySequence);
       } else {
         // Non-letter key - use original font cycling logic
         if (newChar === previousCharRef.current) {
@@ -186,6 +186,8 @@ export function useKeyboardControls({
     setBearVisible,
     setDuckVisible,
     spawnFish,
+    fontIndex,
+    wordState
   ]);
 
   return {

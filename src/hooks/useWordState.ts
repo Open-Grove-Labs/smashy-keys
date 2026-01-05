@@ -224,7 +224,7 @@ export function useWordState({
         nextLetters: possibleNextLetters,
       } as const;
     },
-    [checkForWords, mobileTypedSequence, resetDesktopSequences, wordList]
+    [checkForWords, mobileTypedSequence, resetDesktopSequences, wordList, capsLockOn]
   );
 
   return {

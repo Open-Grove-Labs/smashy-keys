@@ -19,7 +19,6 @@ export function DesktopWordBuilder({
   showNextLetters,
   foundWord,
   wordFadingOut,
-  displayChar,
   displayCharClass,
   fontClass,
   animationKey,

@@ -1,5 +1,3 @@
-import React from "react";
-
 interface WordDisplayProps {
   displayChar: string;
   displayCharClass: string;
